@@ -352,13 +352,18 @@
 
         .playlist-items {
             display: grid;
-            grid-template-columns: repeat(3, 1fr); /* Membagi menjadi 3 kolom */
+            /* minmax(0, 1fr), BUKAN cuma "1fr" -- kalau cuma 1fr, kolom akan
+               ikut melebar mengikuti konten yang panjang (nama lagu), jadi
+               tidak rata lagi antar kolom. minmax(0, ...) mengunci kolom
+               supaya tidak pernah melebihi jatah 1/3 lebar aslinya, apapun
+               isinya. */
+            grid-template-columns: repeat(3, minmax(0, 1fr)); /* Membagi menjadi 3 kolom */
             gap: 10px;
         }
 
         /* Mode Playlist Biasa -- daftar 1 kolom, lebih lega, teks lebih besar */
         .playlist-items.normal-mode {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
         }
 
         .playlist-item {
@@ -371,6 +376,8 @@
             transition: background 0.2s;
             background: #f9f9f9;
             border: 1px solid #eee;
+            min-width: 0; /* biar item grid tidak ikut melebar mengikuti
+                             konten anaknya (lihat catatan di .playlist-items) */
         }
 
         .playlist-item:hover {
@@ -412,6 +419,9 @@
             font-size: 0.9rem;
             text-align: right;
             flex: 1;
+            min-width: 0; /* wajib -- flex item defaultnya min-width:auto,
+                             jadi overflow:hidden di bawah ini tidak akan
+                             pernah kepakai kalau baris ini tidak ada */
             margin-left: 10px;
             white-space: nowrap;
             overflow: hidden;
@@ -555,12 +565,12 @@
                 justify-content: center;
             }
             .playlist-items {
-                grid-template-columns: repeat(2, 1fr); /* 2 kolom di tablet */
+                grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2 kolom di tablet */
             }
         }
         @media (max-width: 480px) {
             .playlist-items {
-                grid-template-columns: 1fr; /* 1 kolom di HP */
+                grid-template-columns: minmax(0, 1fr); /* 1 kolom di HP */
             }
         }
     </style>
