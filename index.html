@@ -524,7 +524,9 @@
                         <input type="range" id="volumeSlider" min="0" max="100" value="100" title="Volume">
                     </div>
                     <button class="pill-btn" id="audio8dBtn" title="Efek 8D Audio: Mati">🎧 8D</button>
+                    <button class="pill-btn" id="downloadHQBtn" title="Render lagu ini lewat filter penjernih lalu unduh sebagai WAV (lossless) untuk diputar offline">⬇️ HQ WAV</button>
                 </div>
+                <div class="hq-status" id="hqStatus" style="display:none; font-size:0.78rem; color:#888; margin-top:8px;"></div>
             </div>
         </div>
 
@@ -589,6 +591,8 @@
         const repeatBtn = document.getElementById('repeatBtn');
         const autoplayBtn = document.getElementById('autoplayBtn');
         const audio8dBtn = document.getElementById('audio8dBtn');
+        const downloadHQBtn = document.getElementById('downloadHQBtn');
+        const hqStatus = document.getElementById('hqStatus');
         const volumeSlider = document.getElementById('volumeSlider');
         const volumeIcon = document.getElementById('volumeIcon');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
@@ -912,6 +916,160 @@
                 pannerNode.pan.value = 0;
             }
         });
+
+        // =========================================================
+        // RENDER & UNDUH WAV KUALITAS MAKSIMAL (offline, bisa diputar
+        // tanpa internet setelah didownload)
+        //
+        // CATATAN JUJUR soal "kbps/khz maksimal":
+        // Ini TIDAK menciptakan detail suara baru yang tidak ada di file
+        // aslinya -- kualitas fisik audio tidak bisa melebihi sumbernya.
+        // Yang dilakukan di sini:
+        //  1) Lagu dirender ulang lewat OfflineAudioContext, melewati
+        //     filter penjernih yang sama dengan yang otomatis aktif saat
+        //     diputar (highshelf + compressor) -- jadi efek jernihnya
+        //     "terbakar" ke dalam file, bukan cuma efek sementara pas
+        //     diputar di browser ini.
+        //  2) Hasilnya disimpan sebagai WAV PCM (lossless, TANPA kompresi
+        //     seperti MP3), memakai sample rate & jumlah channel asli
+        //     file sumbernya -- jadi ini kualitas MAKSIMAL yang mungkin
+        //     didapat dari sumbernya, tanpa kehilangan data akibat
+        //     kompresi ulang.
+        // =========================================================
+        async function renderAndDownloadWav() {
+            const song = songs[currentSongIndex];
+            if (!song || !song.src) {
+                alert('Belum ada lagu di slot ini untuk dirender.');
+                return;
+            }
+
+            downloadHQBtn.disabled = true;
+            downloadHQBtn.textContent = '⏳ Merender...';
+            hqStatus.style.display = 'block';
+            hqStatus.textContent = 'Mengambil & mendekode audio...';
+
+            try {
+                const resp = await fetch(song.src);
+                const arrayBuffer = await resp.arrayBuffer();
+
+                const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const decoded = await tempCtx.decodeAudioData(arrayBuffer.slice(0));
+                tempCtx.close();
+
+                hqStatus.textContent = `Merender lewat filter penjernih (${decoded.sampleRate} Hz, ${decoded.numberOfChannels === 2 ? 'stereo' : 'mono'})...`;
+
+                const offlineCtx = new OfflineAudioContext(
+                    decoded.numberOfChannels,
+                    decoded.length,
+                    decoded.sampleRate // pakai sample rate ASLI -- tidak upsampling palsu
+                );
+
+                const src = offlineCtx.createBufferSource();
+                src.buffer = decoded;
+
+                // Sama persis dengan graph "always-on" saat diputar live
+                const clarityNode = offlineCtx.createBiquadFilter();
+                clarityNode.type = 'highshelf';
+                clarityNode.frequency.value = 8000;
+                clarityNode.gain.value = 4;
+
+                const compressorNode = offlineCtx.createDynamicsCompressor();
+                compressorNode.threshold.value = -20;
+                compressorNode.knee.value = 24;
+                compressorNode.ratio.value = 3;
+                compressorNode.attack.value = 0.02;
+                compressorNode.release.value = 0.25;
+
+                src.connect(clarityNode).connect(compressorNode).connect(offlineCtx.destination);
+                src.start(0);
+
+                const rendered = await offlineCtx.startRendering();
+
+                hqStatus.textContent = 'Membungkus jadi file WAV...';
+                const wavBlob = audioBufferToWav(rendered);
+
+                const url = URL.createObjectURL(wavBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                const safeName = (song.title || 'lagu').replace(/[\\/:*?"<>|]/g, '_');
+                a.download = `${safeName} (HQ ${decoded.sampleRate}Hz).wav`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 15000);
+
+                hqStatus.textContent = `Selesai! Diunduh sebagai WAV ${decoded.sampleRate} Hz, siap diputar offline.`;
+                setTimeout(() => { hqStatus.style.display = 'none'; }, 5000);
+            } catch (err) {
+                console.error(err);
+                hqStatus.textContent = '';
+                hqStatus.style.display = 'none';
+                alert('Gagal merender audio. Kemungkinan file lagu berasal dari server luar yang tidak mengizinkan CORS, atau formatnya tidak didukung browser ini. Lagu yang di-upload langsung dari perangkat biasanya aman.');
+            } finally {
+                downloadHQBtn.disabled = false;
+                downloadHQBtn.textContent = '⬇️ HQ WAV';
+            }
+        }
+
+        // Ubah AudioBuffer hasil render jadi file WAV PCM 16-bit (lossless)
+        function audioBufferToWav(buffer) {
+            const numChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const bitDepth = 16;
+
+            const channelData = [];
+            for (let ch = 0; ch < numChannels; ch++) {
+                channelData.push(buffer.getChannelData(ch));
+            }
+
+            const interleaved = numChannels === 2
+                ? interleaveStereo(channelData[0], channelData[1])
+                : channelData[0];
+
+            const bytesPerSample = bitDepth / 8;
+            const dataLength = interleaved.length * bytesPerSample;
+            const bufferArr = new ArrayBuffer(44 + dataLength);
+            const view = new DataView(bufferArr);
+
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + dataLength, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);           // ukuran chunk fmt
+            view.setUint16(20, 1, true);             // format = PCM
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * numChannels * bytesPerSample, true); // byte rate
+            view.setUint16(32, numChannels * bytesPerSample, true);              // block align
+            view.setUint16(34, bitDepth, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataLength, true);
+
+            floatTo16BitPCM(view, 44, interleaved);
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        function interleaveStereo(left, right) {
+            const length = left.length + right.length;
+            const result = new Float32Array(length);
+            let index = 0, inputIndex = 0;
+            while (index < length) {
+                result[index++] = left[inputIndex];
+                result[index++] = right[inputIndex];
+                inputIndex++;
+            }
+            return result;
+        }
+
+        function floatTo16BitPCM(view, offset, input) {
+            for (let i = 0; i < input.length; i++, offset += 2) {
+                const s = Math.max(-1, Math.min(1, input[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+        }
+
+        downloadHQBtn.addEventListener('click', renderAndDownloadWav);
 
         // Tombol umum -- tambah lagu BARU di luar 15 slot RT (bukan isi slot RT)
         uploadBtn.addEventListener('click', () => { pendingUploadIndex = null; fileInput.click(); });
