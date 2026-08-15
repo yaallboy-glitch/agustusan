@@ -27,7 +27,7 @@
         .container {
             background-color: var(--white);
             width: 100%;
-            max-width: 900px; /* Lebar diperbesar untuk landscape laptop */
+            max-width: 1000px; /* Lebar maksimal untuk layar besar */
             border-radius: 15px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             overflow: hidden;
@@ -71,28 +71,22 @@
             display: inline-block;
         }
 
-        .main-content {
-            display: flex; /* Layout 2 kolom */
-            height: 450px; /* Tinggi tetap agar scroll di playlist */
-        }
-
-        /* Kolom Kiri: Pemutar */
+        /* Layout Pemutar di Atas Tengah */
         .player-section {
-            flex: 1;
-            padding: 25px;
-            text-align: center;
-            border-right: 1px solid #eee;
+            padding: 30px;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             justify-content: center;
+            align-items: center;
+            gap: 40px;
             background: #fafafa;
+            border-bottom: 1px solid #eee;
         }
 
         .cover-art {
-            width: 180px;
-            height: 180px;
+            width: 150px;
+            height: 150px;
             background: var(--primary-red);
-            margin: 0 auto 20px;
             border-radius: 10px;
             overflow: hidden;
             border: 4px solid var(--white);
@@ -105,17 +99,17 @@
             text-align: center;
             font-size: 1.1rem;
             line-height: 1.4;
+            flex-shrink: 0;
         }
 
-        .cover-art img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .player-details {
+            flex: 1;
+            max-width: 500px;
         }
 
         .song-title {
             margin: 0;
-            font-size: 1.6rem;
+            font-size: 1.8rem;
             color: var(--text-dark);
         }
 
@@ -156,7 +150,7 @@
 
         .controls {
             display: flex;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             gap: 25px;
             margin-top: 10px;
@@ -181,12 +175,9 @@
             color: var(--primary-red);
         }
 
-        /* Kolom Kanan: Playlist */
+        /* Layout Playlist di Bawah */
         .playlist-section {
-            flex: 1;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
+            padding: 20px 30px 30px;
             background: var(--white);
         }
 
@@ -197,12 +188,15 @@
             color: var(--text-dark);
             border-bottom: 2px solid var(--primary-red);
             padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .playlist-items {
-            flex: 1;
-            overflow-y: auto;
-            padding-right: 5px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* Membagi menjadi 3 kolom */
+            gap: 10px;
         }
 
         .playlist-item {
@@ -211,7 +205,6 @@
             align-items: center;
             padding: 12px 15px;
             border-radius: 6px;
-            margin-bottom: 8px;
             cursor: pointer;
             transition: background 0.2s;
             background: #f9f9f9;
@@ -220,6 +213,7 @@
 
         .playlist-item:hover {
             background-color: #ffe5e5;
+            border-color: var(--primary-red);
         }
 
         .playlist-item.active {
@@ -230,21 +224,24 @@
 
         .playlist-item .rt-label {
             font-weight: bold;
-            font-size: 0.95rem;
-            min-width: 60px;
+            font-size: 0.9rem;
+            min-width: 50px;
         }
 
         .playlist-item .song-name {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             text-align: right;
             flex: 1;
             margin-left: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .add-song-btn {
             display: block;
             width: 100%;
-            margin-top: 15px;
+            margin-top: 20px;
             padding: 12px;
             background: var(--white);
             border: 2px dashed #ccc;
@@ -258,6 +255,7 @@
         .add-song-btn:hover {
             border-color: var(--primary-red);
             color: var(--primary-red);
+            background: #fff5f5;
         }
 
         .footer {
@@ -280,26 +278,30 @@
             display: none;
         }
 
-        /* Scrollbar styling */
-        .playlist-items::-webkit-scrollbar {
-            width: 6px;
+        /* Responsif untuk layar kecil (Tablet/HP) */
+        @media (max-width: 768px) {
+            .player-section {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+            .controls {
+                justify-content: center;
+            }
+            .playlist-items {
+                grid-template-columns: repeat(2, 1fr); /* 2 kolom di tablet */
+            }
         }
-        .playlist-items::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        .playlist-items::-webkit-scrollbar-thumb {
-            background: #ccc;
-            border-radius: 3px;
-        }
-        .playlist-items::-webkit-scrollbar-thumb:hover {
-            background: #aaa;
+        @media (max-width: 480px) {
+            .playlist-items {
+                grid-template-columns: 1fr; /* 1 kolom di HP */
+            }
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <div class="header-title">
                 <span>🔊 AGUSTUSAN PEMUTAR LAGU</span>
@@ -309,14 +311,12 @@
             </div>
         </div>
 
-        <!-- Main Content (2 Kolom) -->
-        <div class="main-content">
-            
-            <!-- Kolom Kiri: Player -->
-            <div class="player-section">
-                <div class="cover-art" id="coverArt">
-                    DIRGAHAYU<br>INDONESIA
-                </div>
+        <!-- Pemutar Lagu (Atas Tengah) -->
+        <div class="player-section">
+            <div class="cover-art" id="coverArt">
+                DIRGAHAYU<br>INDONESIA
+            </div>
+            <div class="player-details">
                 <h2 class="song-title" id="songTitle">Indonesia Pusaka</h2>
                 <p class="song-rt" id="songRT">RT 01</p>
 
@@ -336,19 +336,23 @@
                     <button class="btn-control" id="nextBtn">⏭</button>
                 </div>
             </div>
-
-            <!-- Kolom Kanan: Playlist -->
-            <div class="playlist-section">
-                <div class="playlist-title">DAFTAR LAGU TIAP RT (15)</div>
-                <div class="playlist-items" id="playlistContainer">
-                    <!-- Diisi oleh JavaScript -->
-                </div>
-                <button class="add-song-btn" onclick="alert('Fitur tambah lagu belum diimplementasikan.')">+ Tambah Lagu</button>
-            </div>
-
         </div>
 
-        <!-- Footer -->
+        <!-- Daftar Lagu (Bawah) -->
+        <div class="playlist-section">
+            <div class="playlist-title">
+                <span>DAFTAR LAGU TIAP RT</span>
+                <span id="songCount" style="font-weight: normal; font-size: 0.9rem; color: #666;">15 Lagu</span>
+            </div>
+            <div class="playlist-items" id="playlistContainer">
+                <!-- Diisi oleh JavaScript -->
+            </div>
+            
+            <!-- Input File Disembunyikan -->
+            <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+            <button class="add-song-btn" id="uploadBtn">+ Tambah Lagu dari Storage</button>
+        </div>
+
         <div class="footer">
             <strong>Dirgahayu Republik Indonesia!</strong>
             Semangat Kebersamaan, Meriahkan Agustusan!
@@ -358,7 +362,7 @@
     <audio id="audioPlayer"></audio>
 
     <script>
-        // Data Dummy Lagu
+        // Data Awal Lagu
         const songs = [
             { rt: "RT 01", title: "Indonesia Pusaka", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
             { rt: "RT 02", title: "Bagimu Negeri", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
@@ -392,10 +396,15 @@
         const currentTimeEl = document.getElementById('currentTime');
         const durationTimeEl = document.getElementById('durationTime');
         const playlistContainer = document.getElementById('playlistContainer');
+        const songCount = document.getElementById('songCount');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
 
         // Render Playlist
         function renderPlaylist() {
             playlistContainer.innerHTML = '';
+            songCount.textContent = `${songs.length} Lagu`;
+            
             songs.forEach((song, index) => {
                 const item = document.createElement('div');
                 item.classList.add('playlist-item');
@@ -408,13 +417,12 @@
                 `;
                 item.addEventListener('click', () => {
                     loadSong(index);
-                    // Hanya load, TIDAK langsung play sesuai permintaan
                 });
                 playlistContainer.appendChild(item);
             });
         }
 
-        // Load Song (Hanya memuat, tidak memutar)
+        // Load Song (Hanya memuat, TIDAK langsung play)
         function loadSong(index) {
             currentSongIndex = index;
             const song = songs[index];
@@ -423,69 +431,57 @@
             coverArt.innerHTML = song.cover;
             audioPlayer.src = song.src;
             
-            // Reset UI ke kondisi pause
             pauseSong(); 
             progressFill.style.width = '0%';
             currentTimeEl.textContent = '00:00';
             durationTimeEl.textContent = '00:00';
             
-            renderPlaylist(); // Update warna aktif di list
+            renderPlaylist();
         }
 
-        // Play Song
         function playSong() {
             isPlaying = true;
             playPauseBtn.innerHTML = '⏸️';
             audioPlayer.play();
         }
 
-        // Pause Song
         function pauseSong() {
             isPlaying = false;
             playPauseBtn.innerHTML = '▶️';
             audioPlayer.pause();
         }
 
-        // Previous Song
         function prevSong() {
             currentSongIndex--;
-            if (currentSongIndex < 0) {
-                currentSongIndex = songs.length - 1;
-            }
+            if (currentSongIndex < 0) currentSongIndex = songs.length - 1;
             loadSong(currentSongIndex);
-            // Jika sebelumnya sedang playing, lanjut play. Jika tidak, biarkan di pause
             if(isPlaying) playSong(); 
         }
 
-        // Next Song
         function nextSong() {
             currentSongIndex++;
-            if (currentSongIndex > songs.length - 1) {
-                currentSongIndex = 0;
-            }
+            if (currentSongIndex > songs.length - 1) currentSongIndex = 0;
             loadSong(currentSongIndex);
-            // Jika sebelumnya sedang playing, lanjut play. Jika tidak, biarkan di pause
             if(isPlaying) playSong();
         }
 
-        // Update Progress Bar
         function updateProgress(e) {
             const { duration, currentTime } = e.srcElement;
-            const progressPercent = (currentTime / duration) * 100;
-            progressFill.style.width = `${progressPercent}%`;
-            currentTimeEl.textContent = formatTime(currentTime);
-            durationTimeEl.textContent = formatTime(duration);
+            if (duration) {
+                const progressPercent = (currentTime / duration) * 100;
+                progressFill.style.width = `${progressPercent}%`;
+                currentTimeEl.textContent = formatTime(currentTime);
+                durationTimeEl.textContent = formatTime(duration);
+            }
         }
 
-        // Set Progress Bar on Click
         function setProgress(e) {
             const width = this.clientWidth;
             const clickX = e.offsetX;
             const duration = audioPlayer.duration;
-            audioPlayer.currentTime = (clickX / width) * duration;
+            if (duration) audioPlayer.currentTime = (clickX / width) * duration;
         }
 
-        // Format Time
         function formatTime(seconds) {
             if (isNaN(seconds)) return "00:00";
             const minutes = Math.floor(seconds / 60);
@@ -494,19 +490,38 @@
         }
 
         // Event Listeners
-        playPauseBtn.addEventListener('click', () => {
-            if (isPlaying) {
-                pauseSong();
-            } else {
-                playSong();
-            }
-        });
-
+        playPauseBtn.addEventListener('click', () => isPlaying ? pauseSong() : playSong());
         prevBtn.addEventListener('click', prevSong);
         nextBtn.addEventListener('click', nextSong);
         audioPlayer.addEventListener('timeupdate', updateProgress);
         audioPlayer.addEventListener('ended', nextSong);
         progressBar.addEventListener('click', setProgress);
+
+        // Fitur Upload dari Storage
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const songUrl = URL.createObjectURL(file);
+                const songName = file.name.replace(/\.[^/.]+$/, ""); // Hapus ekstensi .mp3 dll
+                
+                // Tambahkan ke array songs
+                songs.push({
+                    rt: "UPLOAD",
+                    title: songName,
+                    src: songUrl,
+                    cover: "LAGU<br>UPLOAD"
+                });
+                
+                renderPlaylist();
+                // Opsional: Langsung load lagu yang baru diupload
+                loadSong(songs.length - 1);
+                
+                // Reset input agar bisa upload file dengan nama yang sama lagi
+                fileInput.value = '';
+            }
+        });
 
         // Initial Load
         loadSong(0);
