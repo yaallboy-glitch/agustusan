@@ -615,6 +615,7 @@
                     <button class="btn-control btn-play" id="playPauseBtn">▶️</button>
                     <button class="btn-control" id="nextBtn">⏭</button>
                     <button class="btn-control btn-toggle" id="repeatBtn" title="Ulang: Mati">🔁</button>
+                    <button class="btn-control" id="stopBtn" title="Berhenti & kembali ke awal (tidak otomatis main lagi)">⏹️</button>
                 </div>
 
                 <div class="extra-controls">
@@ -707,6 +708,7 @@
         const nextBtn = document.getElementById('nextBtn');
         const shuffleBtn = document.getElementById('shuffleBtn');
         const repeatBtn = document.getElementById('repeatBtn');
+        const stopBtn = document.getElementById('stopBtn');
         const autoplayBtn = document.getElementById('autoplayBtn');
         const audio8dBtn = document.getElementById('audio8dBtn');
         const downloadOriginalBtn = document.getElementById('downloadOriginalBtn');
@@ -1126,6 +1128,19 @@
                 audioCtx.suspend();
             }
         }
+
+        // Stop/Reset -- beda dari pause: selain berhenti, posisi lagu
+        // dibalikin ke 00:00. TIDAK otomatis main lagi -- harus ditekan
+        // tombol ▶️ sendiri kalau mau lanjut dari awal.
+        function stopSong() {
+            pauseSong();
+            if (audioPlayer.src) {
+                audioPlayer.currentTime = 0;
+            }
+            progressFill.style.width = '0%';
+            currentTimeEl.textContent = '00:00';
+        }
+        stopBtn.addEventListener('click', stopSong);
 
         // Ambil index acak yang beda dari index sekarang (kalau lagu > 1)
         function getRandomIndex(exclude) {
