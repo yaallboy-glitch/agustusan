@@ -44,6 +44,17 @@
             border-radius: 0;
             justify-content: center;
             background-color: var(--white);
+            /* PENTING: harus bisa di-scroll sendiri di dalam sini.
+               Kalau overflow-nya "hidden" (warisan dari .container biasa)
+               dan konten (playlist dll) lebih tinggi dari layar, jari yang
+               geser ke atas/bawah tidak nge-scroll apa-apa -- gerakannya
+               malah "bocor" ke browser/OS dan ditangkap sebagai gestur
+               keluar dari fullscreen. Dengan overflow-y:auto, geseran akan
+               dipakai untuk scroll konten dulu, jadi fullscreen tidak
+               tertutup sendiri. */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
         }
 
         .header {
