@@ -693,6 +693,148 @@
         const modeNormalBtn = document.getElementById('modeNormalBtn');
         const uploadBtn = document.getElementById('uploadBtn');
         const fileInput = document.getElementById('fileInput');
+        const userNameEl = document.getElementById('userName');
+
+        // =========================================================
+        // PENYIMPANAN PERMANEN DI PERANGKAT (IndexedDB)
+        //
+        // Ini BUKAN penyimpanan cloud/internet -- semua lagu (termasuk isi
+        // filenya, bukan cuma nama) disimpan langsung di penyimpanan
+        // browser di HP/laptop. Makanya tetap aman walau:
+        //  - halaman di-refresh
+        //  - browser/app ditutup paksa (force close)
+        //  - wifi/internet mati total (tidak butuh internet sama sekali,
+        //    karena tidak pernah dikirim ke server manapun)
+        // Baru hilang kalau memang sengaja dihapus lewat tombol 🗑️, atau
+        // cache/data browser dibersihkan manual oleh penggunanya.
+        // =========================================================
+        const DB_NAME = 'agustusanPlayerDB';
+        const DB_VERSION = 1;
+        const STORE_SONGS = 'songs';
+        const STORE_META = 'meta';
+        let dbPromise = null;
+
+        function openDB() {
+            if (dbPromise) return dbPromise;
+            dbPromise = new Promise((resolve, reject) => {
+                if (!window.indexedDB) { reject(new Error('IndexedDB tidak didukung di browser ini')); return; }
+                const req = indexedDB.open(DB_NAME, DB_VERSION);
+                req.onupgradeneeded = () => {
+                    const db = req.result;
+                    if (!db.objectStoreNames.contains(STORE_SONGS)) {
+                        db.createObjectStore(STORE_SONGS, { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains(STORE_META)) {
+                        db.createObjectStore(STORE_META, { keyPath: 'key' });
+                    }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+            return dbPromise;
+        }
+
+        async function dbPutSong(record) {
+            try {
+                const db = await openDB();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_SONGS, 'readwrite');
+                    tx.objectStore(STORE_SONGS).put(record);
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error);
+                });
+            } catch (err) {
+                console.error('Gagal menyimpan lagu secara permanen:', err);
+            }
+        }
+
+        async function dbDeleteSong(id) {
+            if (!id) return;
+            try {
+                const db = await openDB();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_SONGS, 'readwrite');
+                    tx.objectStore(STORE_SONGS).delete(id);
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error);
+                });
+            } catch (err) {
+                console.error('Gagal menghapus lagu dari penyimpanan permanen:', err);
+            }
+        }
+
+        async function dbGetAllSongs() {
+            try {
+                const db = await openDB();
+                return await new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_SONGS, 'readonly');
+                    const req = tx.objectStore(STORE_SONGS).getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error);
+                });
+            } catch (err) {
+                console.error('Gagal memuat lagu dari penyimpanan permanen:', err);
+                return [];
+            }
+        }
+
+        async function dbSetMeta(key, value) {
+            try {
+                const db = await openDB();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_META, 'readwrite');
+                    tx.objectStore(STORE_META).put({ key, value });
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error);
+                });
+            } catch (err) {
+                console.error('Gagal menyimpan pengaturan:', err);
+            }
+        }
+
+        async function dbGetMeta(key) {
+            try {
+                const db = await openDB();
+                return await new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_META, 'readonly');
+                    const req = tx.objectStore(STORE_META).get(key);
+                    req.onsuccess = () => resolve(req.result ? req.result.value : undefined);
+                    req.onerror = () => reject(req.error);
+                });
+            } catch (err) {
+                console.error('Gagal memuat pengaturan:', err);
+                return undefined;
+            }
+        }
+
+        // Simpan ulang metadata + file lagu tertentu ke IndexedDB. Dipakai
+        // saat upload, ganti label RT, dsb. Butuh song.dbId & song._blob
+        // sudah terisi (lihat fileInput change handler).
+        function persistSong(song) {
+            if (!song || !song.dbId || !song._blob) return;
+            dbPutSong({
+                id: song.dbId,
+                mode: song._dbMode,
+                slotIndex: (song._dbSlotIndex === undefined ? null : song._dbSlotIndex),
+                order: song._dbOrder || Date.now(),
+                rt: song.rt || '',
+                title: song.title,
+                fileName: song.fileName,
+                cover: song.cover,
+                blob: song._blob
+            });
+        }
+
+        // Debounce kecil biar ketik label RT / nama tidak nembak IndexedDB
+        // di setiap huruf yang diketik.
+        function debounce(fn, wait) {
+            let t = null;
+            return (...args) => {
+                clearTimeout(t);
+                t = setTimeout(() => fn(...args), wait);
+            };
+        }
+        const persistSongDebounced = debounce(persistSong, 400);
 
         // Render Playlist
         function renderPlaylist() {
@@ -728,6 +870,7 @@
                     rtLabelEl.addEventListener('input', () => {
                         songs[index].rt = rtLabelEl.textContent;
                         if (index === currentSongIndex) songRT.textContent = rtLabelEl.textContent;
+                        persistSongDebounced(songs[index]);
                     });
                     rtLabelEl.addEventListener('keydown', (e) => {
                         if (e.key === 'Enter') { e.preventDefault(); rtLabelEl.blur(); }
@@ -746,6 +889,7 @@
                     deleteBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         if (song.src) URL.revokeObjectURL(song.src);
+                        dbDeleteSong(song.dbId);
                         if (song.rt === 'UPLOAD') {
                             songs.splice(index, 1);
                             if (currentSongIndex >= songs.length) currentSongIndex = Math.max(0, songs.length - 1);
@@ -754,6 +898,9 @@
                             songs[index].title = null;
                             songs[index].src = null;
                             songs[index].cover = "DIRGAHAYU<br>INDONESIA";
+                            songs[index].dbId = `rt15-${index}`;
+                            songs[index].fileName = null;
+                            songs[index]._blob = null;
                         }
                         if (index === currentSongIndex || songs[currentSongIndex] === undefined) {
                             loadSong(Math.min(currentSongIndex, Math.max(0, songs.length - 1)));
@@ -772,6 +919,7 @@
                     deleteBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         if (song.src) URL.revokeObjectURL(song.src);
+                        dbDeleteSong(song.dbId);
                         songs.splice(index, 1);
                         if (songs.length === 0) {
                             showEmptyPlayerState();
@@ -822,6 +970,7 @@
             currentMode = mode;
             songs = (mode === 'rt15') ? songsRT15 : songsNormal;
             pendingUploadIndex = null;
+            dbSetMeta('currentMode', mode);
 
             modeRtBtn.classList.toggle('active', mode === 'rt15');
             modeNormalBtn.classList.toggle('active', mode === 'normal');
@@ -1037,29 +1186,85 @@
         let audioCtx = null, sourceNode = null, pannerNode = null;
         let is8D = false, panStartTime = 0, panRafId = null;
 
+        // =========================================================
+        // RANGKAIAN PENJERNIH & PENGUAT KUALITAS ("mastering chain")
+        //
+        // Dipakai OTOMATIS untuk SEMUA lagu, di KEDUA preset (15 Lagu RT
+        // maupun Playlist Biasa) -- karena nempel ke satu elemen <audio>
+        // yang dipakai bersama oleh kedua preset itu, bukan per-lagu.
+        // Fungsi yang SAMA PERSIS ini juga dipakai saat tombol "Unduh HQ
+        // WAV" dipakai, jadi hasil unduhan = persis apa yang kedengaran
+        // pas lagu diputar di sini.
+        //
+        // CATATAN JUJUR: tidak ada proses digital yang bisa menciptakan
+        // detail suara yang memang tidak ada di file aslinya (mustahil
+        // secara fisik). Yang dilakukan di sini adalah membentuk ulang
+        // frekuensi (EQ 3-band) + meratakan & menaikkan volume secara
+        // aman (compressor + limiter) -- mirip proses "mastering" studio
+        // -- supaya secara PERSEPSI lagu kedengaran lebih penuh, jernih,
+        // dan kencang, tanpa sampai pecah/distorsi walau sumbernya sudah
+        // keras dari sananya.
+        // =========================================================
+        function buildEnhancerChain(ctx) {
+            // 1) Bass -- sedikit lebih penuh/hangat
+            const bassNode = ctx.createBiquadFilter();
+            bassNode.type = 'lowshelf';
+            bassNode.frequency.value = 150;
+            bassNode.gain.value = 3.5;
+
+            // 2) Presence -- vokal & instrumen depan terasa lebih dekat/jelas
+            const presenceNode = ctx.createBiquadFilter();
+            presenceNode.type = 'peaking';
+            presenceNode.frequency.value = 3000;
+            presenceNode.Q.value = 1;
+            presenceNode.gain.value = 2.5;
+
+            // 3) Treble -- detail/kilau (hi-hat, cymbal, konsonan vokal)
+            const clarityNode = ctx.createBiquadFilter();
+            clarityNode.type = 'highshelf';
+            clarityNode.frequency.value = 9000;
+            clarityNode.gain.value = 3.5;
+
+            // 4) Compressor halus -- ratakan volume, bagian pelan tetap
+            //    kedengaran jelas, bagian keras tidak melonjak liar
+            const compressorNode = ctx.createDynamicsCompressor();
+            compressorNode.threshold.value = -20;
+            compressorNode.knee.value = 20;
+            compressorNode.ratio.value = 2.5;
+            compressorNode.attack.value = 0.015;
+            compressorNode.release.value = 0.3;
+
+            // 5) Gain make-up -- imbangi volume yang turun akibat compressor
+            const makeupGain = ctx.createGain();
+            makeupGain.gain.value = 1.15;
+
+            // 6) Limiter (brickwall) -- pengaman TERAKHIR supaya boost EQ
+            //    di atas tidak sampai bikin suara pecah/clipping
+            const limiterNode = ctx.createDynamicsCompressor();
+            limiterNode.threshold.value = -1;
+            limiterNode.knee.value = 0;
+            limiterNode.ratio.value = 20;
+            limiterNode.attack.value = 0.002;
+            limiterNode.release.value = 0.1;
+
+            bassNode.connect(presenceNode)
+                .connect(clarityNode)
+                .connect(compressorNode)
+                .connect(makeupGain)
+                .connect(limiterNode);
+
+            return { input: bassNode, output: limiterNode };
+        }
+
         function ensureAudioGraph() {
             if (audioCtx) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             sourceNode = audioCtx.createMediaElementSource(audioPlayer);
             pannerNode = audioCtx.createStereoPanner();
 
-            // Highshelf halus -- angkat sedikit frekuensi tinggi (vokal/hi-hat/
-            // detail) biar kedengaran lebih jernih, tidak berlebihan.
-            const clarityNode = audioCtx.createBiquadFilter();
-            clarityNode.type = 'highshelf';
-            clarityNode.frequency.value = 8000;
-            clarityNode.gain.value = 4;
-
-            // Compressor halus -- ratakan volume supaya bagian pelan tetap
-            // kedengaran jelas, tanpa bikin bagian keras jadi pecah/distorsi.
-            const compressorNode = audioCtx.createDynamicsCompressor();
-            compressorNode.threshold.value = -20;
-            compressorNode.knee.value = 24;
-            compressorNode.ratio.value = 3;
-            compressorNode.attack.value = 0.02;
-            compressorNode.release.value = 0.25;
-
-            sourceNode.connect(pannerNode).connect(clarityNode).connect(compressorNode).connect(audioCtx.destination);
+            const enhancer = buildEnhancerChain(audioCtx);
+            sourceNode.connect(pannerNode).connect(enhancer.input);
+            enhancer.output.connect(audioCtx.destination);
         }
 
         function run8DPanLoop() {
@@ -1154,19 +1359,9 @@
                 src.buffer = decoded;
 
                 // Sama persis dengan graph "always-on" saat diputar live
-                const clarityNode = offlineCtx.createBiquadFilter();
-                clarityNode.type = 'highshelf';
-                clarityNode.frequency.value = 8000;
-                clarityNode.gain.value = 4;
-
-                const compressorNode = offlineCtx.createDynamicsCompressor();
-                compressorNode.threshold.value = -20;
-                compressorNode.knee.value = 24;
-                compressorNode.ratio.value = 3;
-                compressorNode.attack.value = 0.02;
-                compressorNode.release.value = 0.25;
-
-                src.connect(clarityNode).connect(compressorNode).connect(offlineCtx.destination);
+                const enhancer = buildEnhancerChain(offlineCtx);
+                src.connect(enhancer.input);
+                enhancer.output.connect(offlineCtx.destination);
                 src.start(0);
 
                 const rendered = await offlineCtx.startRendering();
@@ -1279,6 +1474,11 @@
                     songs[idx].src = songUrl;
                     songs[idx].fileName = file.name; // nama asli + ekstensi, dipakai saat "Unduh Asli"
                     songs[idx].cover = "LAGU<br>UPLOAD";
+                    songs[idx].dbId = `rt15-${idx}`;
+                    songs[idx]._blob = file;
+                    songs[idx]._dbMode = 'rt15';
+                    songs[idx]._dbSlotIndex = idx;
+                    persistSong(songs[idx]);
                     pendingUploadIndex = null;
                     if (idx === currentSongIndex) {
                         loadSong(idx); // refresh tampilan pemutar kalau slot ini lagi aktif
@@ -1287,13 +1487,21 @@
                     }
                 } else {
                     // Tombol umum -- tambah baris baru di akhir daftar
-                    songs.push({
+                    const order = Date.now();
+                    const newSong = {
                         rt: currentMode === 'rt15' ? "UPLOAD" : "",
                         title: songName,
                         src: songUrl,
                         fileName: file.name, // nama asli + ekstensi, dipakai saat "Unduh Asli"
-                        cover: currentMode === 'rt15' ? "LAGU<br>UPLOAD" : "PLAYLIST<br>LAGU"
-                    });
+                        cover: currentMode === 'rt15' ? "LAGU<br>UPLOAD" : "PLAYLIST<br>LAGU",
+                        dbId: `${currentMode}-extra-${order}-${Math.random().toString(36).slice(2, 8)}`,
+                        _blob: file,
+                        _dbMode: currentMode,
+                        _dbSlotIndex: null,
+                        _dbOrder: order
+                    };
+                    songs.push(newSong);
+                    persistSong(newSong);
                     renderPlaylist();
                     loadSong(songs.length - 1);
                 }
@@ -1303,8 +1511,81 @@
             }
         });
 
-        // Initial Load
-        loadSong(0);
+        // Simpan nama pengguna juga -- kecil, tapi ikut dikembalikan lagi
+        // setelah refresh/force-close biar tidak perlu ketik ulang.
+        userNameEl.addEventListener('input', debounce(() => {
+            dbSetMeta('userName', userNameEl.textContent);
+        }, 400));
+
+        // =========================================================
+        // PEMULIHAN OTOMATIS SAAT HALAMAN DIBUKA
+        //
+        // Baca semua lagu (isi file + label RT + urutan) dan pengaturan
+        // terakhir (nama, preset aktif) dari IndexedDB, lalu susun ulang
+        // playlist persis seperti sebelum halaman ditutup/refresh --
+        // semua dari penyimpanan LOKAL, tidak butuh internet sama sekali.
+        // =========================================================
+        async function restoreFromDB() {
+            const records = await dbGetAllSongs();
+
+            const extrasRT15 = [];
+            const normalList = [];
+
+            for (const rec of records) {
+                const songObj = {
+                    rt: rec.rt || '',
+                    title: rec.title,
+                    src: rec.blob ? URL.createObjectURL(rec.blob) : null,
+                    fileName: rec.fileName,
+                    cover: rec.cover,
+                    dbId: rec.id,
+                    _blob: rec.blob || null,
+                    _dbMode: rec.mode,
+                    _dbSlotIndex: (rec.slotIndex === undefined ? null : rec.slotIndex),
+                    _dbOrder: rec.order || 0
+                };
+
+                if (rec.mode === 'rt15' && rec.slotIndex !== null && rec.slotIndex !== undefined
+                    && rec.slotIndex >= 0 && rec.slotIndex < songsRT15.length) {
+                    songsRT15[rec.slotIndex] = songObj;
+                } else if (rec.mode === 'rt15') {
+                    extrasRT15.push(songObj);
+                } else if (rec.mode === 'normal') {
+                    normalList.push(songObj);
+                }
+            }
+
+            extrasRT15.sort((a, b) => a._dbOrder - b._dbOrder);
+            normalList.sort((a, b) => a._dbOrder - b._dbOrder);
+            songsRT15.push(...extrasRT15);
+            songsNormal = normalList;
+
+            const savedName = await dbGetMeta('userName');
+            if (savedName) userNameEl.textContent = savedName;
+
+            const savedMode = await dbGetMeta('currentMode');
+            if (savedMode === 'normal') {
+                currentMode = 'normal';
+                modeRtBtn.classList.remove('active');
+                modeNormalBtn.classList.add('active');
+                playlistTitleLabel.textContent = 'DAFTAR LAGU';
+                uploadBtn.textContent = '+ Tambah Lagu';
+            }
+            songs = (currentMode === 'rt15') ? songsRT15 : songsNormal;
+
+            if (songs.length > 0) {
+                loadSong(0);
+            } else {
+                showEmptyPlayerState();
+            }
+        }
+
+        // Initial Load -- coba pulihkan dari penyimpanan permanen dulu;
+        // kalau gagal/kosong, tampilkan 15 slot RT kosong seperti biasa.
+        restoreFromDB().catch((err) => {
+            console.error('Gagal memulihkan playlist tersimpan:', err);
+            loadSong(0);
+        });
     </script>
 </body>
 </html>
