@@ -597,6 +597,7 @@
                     <span class="rt-label" contenteditable="true" spellcheck="false">${song.rt}</span>
                     <span class="song-name${hasSong ? '' : ' song-empty'}">${hasSong ? song.title : 'Belum ada lagu'}</span>
                     <button type="button" class="slot-upload-btn" title="Upload lagu untuk ${song.rt}">📤</button>
+                    <button type="button" class="slot-upload-btn" title="Hapus lagu ini">🗑️</button>
                 `;
                 const rtLabelEl = item.querySelector('.rt-label');
                 // Klik di label RT buat edit teks -- jangan sampai ikut memicu ganti lagu.
@@ -615,6 +616,27 @@
                     e.stopPropagation();
                     pendingUploadIndex = index;
                     fileInput.click();
+                });
+                // Tombol hapus -- slot RT tetap (di-reset kosong), lagu tambahan
+                // di luar 15 RT (rt==="UPLOAD") langsung dibuang dari daftar.
+                const deleteBtn = item.querySelectorAll('.slot-upload-btn')[1];
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (song.src) URL.revokeObjectURL(song.src);
+                    if (song.rt === 'UPLOAD') {
+                        songs.splice(index, 1);
+                        if (currentSongIndex >= songs.length) currentSongIndex = Math.max(0, songs.length - 1);
+                        else if (index < currentSongIndex) currentSongIndex--;
+                    } else {
+                        songs[index].title = null;
+                        songs[index].src = null;
+                        songs[index].cover = "DIRGAHAYU<br>INDONESIA";
+                    }
+                    if (index === currentSongIndex || songs[currentSongIndex] === undefined) {
+                        loadSong(Math.min(currentSongIndex, Math.max(0, songs.length - 1)));
+                    } else {
+                        renderPlaylist();
+                    }
                 });
                 item.addEventListener('click', () => {
                     const wasPlaying = isPlaying;
