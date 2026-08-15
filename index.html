@@ -418,6 +418,32 @@
             text-overflow: ellipsis;
         }
 
+        /* Marquee -- judul lagu yang kepanjangan berjalan/scroll di dalam
+           kotaknya sendiri, TIDAK memperlebar/mendorong kolom RT. Kalau
+           judulnya pendek dan muat, tidak ada animasi sama sekali (diam). */
+        .playlist-item .song-name-track {
+            display: inline-flex;
+            max-width: 100%;
+        }
+        .playlist-item .song-name .marquee-seg {
+            padding-right: 28px;
+        }
+        .playlist-item .song-name:not(.marquee-active) .marquee-seg:last-child {
+            display: none;
+        }
+        .playlist-item .song-name.marquee-active {
+            text-overflow: unset;
+        }
+        .playlist-item .song-name.marquee-active .song-name-track {
+            animation-name: marqueeLoop;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+        }
+        @keyframes marqueeLoop {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+
         /* Preset "15 Lagu RT" -- nama lagu diperkecil biar tidak penuh,
            soalnya harus muat 15 baris sekaligus di grid 3 kolom. */
         .playlist-items.rt-mode .song-name {
@@ -860,7 +886,7 @@
                     const hasSong = !!song.src;
                     item.innerHTML = `
                         <span class="rt-label" contenteditable="true" spellcheck="false">${song.rt}</span>
-                        <span class="song-name${hasSong ? '' : ' song-empty'}">${hasSong ? song.title : 'Belum ada lagu'}</span>
+                        <span class="song-name${hasSong ? '' : ' song-empty'}"><span class="song-name-track"><span class="marquee-seg">${hasSong ? song.title : 'Belum ada lagu'}</span><span class="marquee-seg" aria-hidden="true">${hasSong ? song.title : ''}</span></span></span>
                         <button type="button" class="slot-upload-btn" title="Upload lagu untuk ${song.rt}">📤</button>
                         <button type="button" class="slot-upload-btn" title="Hapus lagu ini">🗑️</button>
                     `;
@@ -912,7 +938,7 @@
                     // ===== Preset Playlist Biasa: daftar dinamis, tanpa label RT =====
                     item.innerHTML = `
                         <span class="track-number">${index + 1}.</span>
-                        <span class="song-name">${song.title}</span>
+                        <span class="song-name"><span class="song-name-track"><span class="marquee-seg">${song.title}</span><span class="marquee-seg" aria-hidden="true">${song.title}</span></span></span>
                         <button type="button" class="slot-upload-btn" title="Hapus lagu ini">🗑️</button>
                     `;
                     const deleteBtn = item.querySelector('.slot-upload-btn');
@@ -941,6 +967,34 @@
                     if (wasPlaying) playSong();
                 });
                 playlistContainer.appendChild(item);
+            });
+
+            activateMarquees();
+        }
+
+        // Aktifkan animasi marquee HANYA untuk judul yang benar-benar
+        // kepanjangan (melebihi lebar kotaknya) -- judul pendek dibiarkan
+        // diam, tidak ikut-ikutan bergerak. Ukurannya di-cek setelah
+        // elemen benar-benar ada di DOM (pakai requestAnimationFrame
+        // supaya browser sudah selesai layout dulu).
+        function activateMarquees() {
+            requestAnimationFrame(() => {
+                playlistContainer.querySelectorAll('.song-name').forEach((nameEl) => {
+                    const track = nameEl.querySelector('.song-name-track');
+                    const firstSeg = nameEl.querySelector('.marquee-seg');
+                    if (!track || !firstSeg) return;
+                    const singleWidth = firstSeg.offsetWidth;
+                    const boxWidth = nameEl.clientWidth;
+                    nameEl.classList.remove('marquee-active');
+                    track.style.removeProperty('animation-duration');
+                    if (singleWidth > boxWidth + 2) {
+                        // Kecepatan tetap (~35px/detik) supaya judul panjang
+                        // tidak terasa buru-buru dibanding judul yang lebih pendek.
+                        const duration = Math.max(4, singleWidth / 35);
+                        track.style.animationDuration = `${duration}s`;
+                        nameEl.classList.add('marquee-active');
+                    }
+                });
             });
         }
 
@@ -1021,16 +1075,32 @@
                 return;
             }
             ensureAudioGraph();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
             isPlaying = true;
             playPauseBtn.innerHTML = '⏸️';
-            audioPlayer.play();
+            // Pastikan rangkaian Web Audio-nya sudah benar-benar aktif
+            // (resume) SEBELUM elemen audio-nya diputar -- kalau kebalik
+            // urutannya, sepersekian detik pertama bisa diam/glitch karena
+            // context-nya belum siap menerima suara.
+            const resumeThenPlay = () => audioPlayer.play();
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().then(resumeThenPlay).catch(resumeThenPlay);
+            } else {
+                resumeThenPlay();
+            }
         }
 
         function pauseSong() {
             isPlaying = false;
             playPauseBtn.innerHTML = '▶️';
             audioPlayer.pause();
+            // Ikut hentikan rangkaian Web Audio-nya (bukan cuma elemen
+            // <audio>-nya) -- kalau tidak, rangkaian filter/compressor
+            // tetap "hidup" di belakang layar dan suka nyisain sepotong
+            // buffer terakhir yang terdengar seperti "ngulang" pas nanti
+            // ditekan play lagi.
+            if (audioCtx && audioCtx.state === 'running') {
+                audioCtx.suspend();
+            }
         }
 
         // Ambil index acak yang beda dari index sekarang (kalau lagu > 1)
@@ -1164,6 +1234,17 @@
         document.addEventListener('fullscreenchange', syncFullscreenBtn);
         document.addEventListener('webkitfullscreenchange', syncFullscreenBtn);
 
+        // Jaga-jaga khusus iPad/HP: kalau layar dikunci atau aplikasi
+        // dipindah ke background lalu dibuka lagi, sistemnya kadang
+        // men-suspend AudioContext sendiri (irit baterai). Begitu app
+        // aktif lagi, kalau tadinya memang lagi diputar, bangunkan lagi
+        // context-nya -- biar suara tidak hilang atau nge-glitch.
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && isPlaying && audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => {});
+            }
+        });
+
         // Autoplay -- kalau dimatikan, lagu berhenti total begitu selesai
         // (lihat handleSongEnd), tidak lompat ke lagu berikutnya sendiri.
         autoplayBtn.addEventListener('click', () => {
@@ -1199,11 +1280,11 @@
         // CATATAN JUJUR: tidak ada proses digital yang bisa menciptakan
         // detail suara yang memang tidak ada di file aslinya (mustahil
         // secara fisik). Yang dilakukan di sini adalah membentuk ulang
-        // frekuensi (EQ 3-band) + meratakan & menaikkan volume secara
-        // aman (compressor + limiter) -- mirip proses "mastering" studio
-        // -- supaya secara PERSEPSI lagu kedengaran lebih penuh, jernih,
-        // dan kencang, tanpa sampai pecah/distorsi walau sumbernya sudah
-        // keras dari sananya.
+        // frekuensi (EQ 3-band) + meratakan & mengamankan volume dengan
+        // SATU node dynamics (bukan dua bersusun) -- supaya secara
+        // PERSEPSI lagu kedengaran lebih penuh & jernih, tanpa sampai
+        // pecah/distorsi, dan tanpa numpuk "lookahead buffer" dua
+        // compressor sekaligus yang dulu jadi biang glitch pas pause/play.
         // =========================================================
         function buildEnhancerChain(ctx) {
             // 1) Bass -- sedikit lebih penuh/hangat
@@ -1225,35 +1306,27 @@
             clarityNode.frequency.value = 9000;
             clarityNode.gain.value = 3.5;
 
-            // 4) Compressor halus -- ratakan volume, bagian pelan tetap
-            //    kedengaran jelas, bagian keras tidak melonjak liar
-            const compressorNode = ctx.createDynamicsCompressor();
-            compressorNode.threshold.value = -20;
-            compressorNode.knee.value = 20;
-            compressorNode.ratio.value = 2.5;
-            compressorNode.attack.value = 0.015;
-            compressorNode.release.value = 0.3;
+            // 4) SATU node dynamics yang merangkap tugas "compressor" (ratakan
+            //    volume) SEKALIGUS "limiter" (cegah pecah/clipping) -- threshold
+            //    lebih rendah + ratio lebih tinggi dari compressor biasa, jadi
+            //    tetap aman menahan boost EQ di atas tanpa perlu node kedua.
+            const dynamicsNode = ctx.createDynamicsCompressor();
+            dynamicsNode.threshold.value = -18;
+            dynamicsNode.knee.value = 16;
+            dynamicsNode.ratio.value = 6;
+            dynamicsNode.attack.value = 0.006;
+            dynamicsNode.release.value = 0.25;
 
-            // 5) Gain make-up -- imbangi volume yang turun akibat compressor
+            // 5) Gain make-up -- imbangi volume yang turun akibat dynamicsNode
             const makeupGain = ctx.createGain();
-            makeupGain.gain.value = 1.15;
-
-            // 6) Limiter (brickwall) -- pengaman TERAKHIR supaya boost EQ
-            //    di atas tidak sampai bikin suara pecah/clipping
-            const limiterNode = ctx.createDynamicsCompressor();
-            limiterNode.threshold.value = -1;
-            limiterNode.knee.value = 0;
-            limiterNode.ratio.value = 20;
-            limiterNode.attack.value = 0.002;
-            limiterNode.release.value = 0.1;
+            makeupGain.gain.value = 1.1;
 
             bassNode.connect(presenceNode)
                 .connect(clarityNode)
-                .connect(compressorNode)
-                .connect(makeupGain)
-                .connect(limiterNode);
+                .connect(dynamicsNode)
+                .connect(makeupGain);
 
-            return { input: bassNode, output: limiterNode };
+            return { input: bassNode, output: makeupGain };
         }
 
         function ensureAudioGraph() {
