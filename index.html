@@ -388,6 +388,21 @@
             font-size: 1rem;
         }
 
+        /* input file disembunyikan SECARA VISUAL (bukan display:none) --
+           Safari iOS/iPadOS kadang menolak membuka jendela pilih file kalau
+           inputnya display:none, walau ditrigger lewat tombol. */
+        .visually-hidden-file {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            white-space: nowrap;
+            border: 0;
+        }
+
         audio {
             display: none;
         }
@@ -480,7 +495,7 @@
             </div>
             
             <!-- Input File Disembunyikan -->
-            <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+            <input type="file" id="fileInput" accept="audio/*" class="visually-hidden-file">
             <button class="add-song-btn" id="uploadBtn">+ Tambah Lagu dari Storage</button>
         </div>
 
