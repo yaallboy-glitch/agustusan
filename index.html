@@ -524,8 +524,8 @@
                         <input type="range" id="volumeSlider" min="0" max="100" value="100" title="Volume">
                     </div>
                     <button class="pill-btn" id="audio8dBtn" title="Efek 8D Audio: Mati">🎧 8D</button>
-                    <button class="pill-btn" id="downloadHQBtn" title="Render lagu ini lewat filter penjernih lalu unduh sebagai WAV (lossless) untuk diputar offline">⬇️ HQ WAV</button>
-                    <button class="pill-btn active" id="autoHqBtn" title="Setiap kali upload lagu, otomatis dirender & didownload jadi WAV kualitas maksimal: Aktif">AUTO HQ</button>
+                    <button class="pill-btn" id="downloadOriginalBtn" title="Unduh file lagu ini apa adanya (tanpa diproses) -- selalu berhasil berapapun panjangnya">⬇️ Unduh Asli</button>
+                    <button class="pill-btn" id="downloadHQBtn" title="Render lagu ini lewat filter penjernih lalu unduh sebagai WAV (lossless) untuk diputar offline -- disarankan untuk lagu yang tidak terlalu panjang">⬇️ Unduh HQ WAV</button>
                 </div>
                 <div class="hq-status" id="hqStatus" style="display:none; font-size:0.78rem; color:#888; margin-top:8px;"></div>
             </div>
@@ -597,9 +597,8 @@
         const repeatBtn = document.getElementById('repeatBtn');
         const autoplayBtn = document.getElementById('autoplayBtn');
         const audio8dBtn = document.getElementById('audio8dBtn');
+        const downloadOriginalBtn = document.getElementById('downloadOriginalBtn');
         const downloadHQBtn = document.getElementById('downloadHQBtn');
-        const autoHqBtn = document.getElementById('autoHqBtn');
-        let isAutoHq = true; // upload lagu langsung dirender & didownload otomatis jadi WAV HQ
         const hqStatus = document.getElementById('hqStatus');
         const volumeSlider = document.getElementById('volumeSlider');
         const volumeIcon = document.getElementById('volumeIcon');
@@ -944,6 +943,25 @@
         //     didapat dari sumbernya, tanpa kehilangan data akibat
         //     kompresi ulang.
         // =========================================================
+        // Unduh file lagu APA ADANYA, tanpa diproses sama sekali.
+        // Ini pilihan paling ringan & paling aman -- tidak perlu decode audio
+        // ke memori, jadi tidak ada risiko gagal karena file panjang/besar
+        // (misalnya lagu DJ/mixtape berdurasi puluhan menit - jam).
+        function downloadOriginalFile(songOverride) {
+            const song = songOverride || songs[currentSongIndex];
+            if (!song || !song.src) {
+                alert('Belum ada lagu di slot ini untuk diunduh.');
+                return;
+            }
+            const a = document.createElement('a');
+            a.href = song.src;
+            a.download = song.fileName || `${song.title || 'lagu'}.mp3`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+        downloadOriginalBtn.addEventListener('click', () => downloadOriginalFile());
+
         async function renderAndDownloadWav(songOverride) {
             const song = songOverride || songs[currentSongIndex];
             if (!song || !song.src) {
@@ -1012,10 +1030,16 @@
                 console.error(err);
                 hqStatus.textContent = '';
                 hqStatus.style.display = 'none';
-                alert('Gagal merender audio. Kemungkinan file lagu berasal dari server luar yang tidak mengizinkan CORS, atau formatnya tidak didukung browser ini. Lagu yang di-upload langsung dari perangkat biasanya aman.');
+                alert(
+                    'Gagal merender jadi WAV.\n\n' +
+                    'Alasan teknis: ' + (err && err.message ? err.message : err) + '\n\n' +
+                    'Ini sering terjadi kalau lagunya sangat panjang (mixtape/DJ set puluhan menit-berjam-jam) ' +
+                    'karena harus dimuat penuh ke memori perangkat. Untuk lagu seperti itu, gunakan tombol ' +
+                    '"⬇️ Unduh Asli" saja -- hasilnya tetap kualitas penuh tanpa risiko gagal.'
+                );
             } finally {
                 downloadHQBtn.disabled = false;
-                downloadHQBtn.textContent = '⬇️ HQ WAV';
+                downloadHQBtn.textContent = '⬇️ Unduh HQ WAV';
             }
         }
 
@@ -1079,14 +1103,6 @@
 
         downloadHQBtn.addEventListener('click', renderAndDownloadWav);
 
-        autoHqBtn.addEventListener('click', () => {
-            isAutoHq = !isAutoHq;
-            autoHqBtn.classList.toggle('active', isAutoHq);
-            autoHqBtn.title = isAutoHq
-                ? 'Setiap kali upload lagu, otomatis dirender & didownload jadi WAV kualitas maksimal: Aktif'
-                : 'Setiap kali upload lagu, otomatis dirender & didownload jadi WAV kualitas maksimal: Mati';
-        });
-
         // Tombol umum -- tambah lagu BARU di luar 15 slot RT (bukan isi slot RT)
         uploadBtn.addEventListener('click', () => { pendingUploadIndex = null; fileInput.click(); });
         
@@ -1095,16 +1111,15 @@
             if (file) {
                 const songUrl = URL.createObjectURL(file);
                 const songName = file.name.replace(/\.[^/.]+$/, ""); // Hapus ekstensi .mp3 dll
-                let uploadedSong; // referensi song object yang baru diisi, untuk auto-render HQ
 
                 if (pendingUploadIndex !== null) {
                     // Isi/ganti lagu KHUSUS slot RT yang tombol upload-nya diklik
                     const idx = pendingUploadIndex;
                     songs[idx].title = songName;
                     songs[idx].src = songUrl;
+                    songs[idx].fileName = file.name; // nama asli + ekstensi, dipakai saat "Unduh Asli"
                     songs[idx].cover = "LAGU<br>UPLOAD";
                     pendingUploadIndex = null;
-                    uploadedSong = songs[idx];
                     if (idx === currentSongIndex) {
                         loadSong(idx); // refresh tampilan pemutar kalau slot ini lagi aktif
                     } else {
@@ -1112,22 +1127,15 @@
                     }
                 } else {
                     // Tombol umum -- tambah baris baru di akhir daftar
-                    const newSong = {
+                    songs.push({
                         rt: "UPLOAD",
                         title: songName,
                         src: songUrl,
+                        fileName: file.name, // nama asli + ekstensi, dipakai saat "Unduh Asli"
                         cover: "LAGU<br>UPLOAD"
-                    };
-                    songs.push(newSong);
-                    uploadedSong = newSong;
+                    });
                     renderPlaylist();
                     loadSong(songs.length - 1);
-                }
-
-                // Auto-render ke WAV kualitas maksimal & langsung download,
-                // biar tidak perlu klik tombol HQ WAV manual satu-satu per lagu.
-                if (isAutoHq && uploadedSong) {
-                    renderAndDownloadWav(uploadedSong);
                 }
 
                 // Reset input agar bisa upload file dengan nama yang sama lagi
