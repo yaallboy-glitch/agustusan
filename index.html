@@ -223,11 +223,45 @@
         }
 
         /* Volume */
+        .extra-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .pill-btn {
+            border: 1.5px solid #ddd;
+            background: var(--white);
+            color: #888;
+            font-size: 0.72rem;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .pill-btn:hover {
+            border-color: var(--primary-red);
+            color: var(--primary-red);
+        }
+
+        .pill-btn.active {
+            background: var(--primary-red);
+            border-color: var(--primary-red);
+            color: var(--white);
+        }
+
         .volume-container {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-top: 16px;
         }
 
         .volume-container span {
@@ -295,6 +329,17 @@
             font-weight: bold;
             font-size: 0.9rem;
             min-width: 50px;
+        }
+
+        .playlist-item .rt-label[contenteditable="true"] {
+            cursor: text;
+            outline: none;
+            border-bottom: 1px dashed transparent;
+        }
+
+        .playlist-item .rt-label[contenteditable="true"]:hover,
+        .playlist-item .rt-label[contenteditable="true"]:focus {
+            border-bottom-color: currentColor;
         }
 
         .playlist-item .song-name {
@@ -413,9 +458,13 @@
                     <button class="btn-control btn-toggle" id="repeatBtn" title="Ulang: Mati">🔁</button>
                 </div>
 
-                <div class="volume-container">
-                    <span id="volumeIcon">🔊</span>
-                    <input type="range" id="volumeSlider" min="0" max="100" value="100" title="Volume">
+                <div class="extra-controls">
+                    <button class="pill-btn active" id="autoplayBtn" title="Lanjut otomatis ke lagu berikutnya: Aktif">AUTO</button>
+                    <div class="volume-container">
+                        <span id="volumeIcon">🔊</span>
+                        <input type="range" id="volumeSlider" min="0" max="100" value="100" title="Volume">
+                    </div>
+                    <button class="pill-btn" id="audio8dBtn" title="Efek 8D Audio: Mati">🎧 8D</button>
                 </div>
             </div>
         </div>
@@ -467,13 +516,17 @@
         let isPlaying = false;
         let isShuffle = false;
         let repeatMode = 'off'; // 'off' | 'all' | 'one'
+        let isAutoplay = true;
 
         const audioPlayer = document.getElementById('audioPlayer');
+        audioPlayer.crossOrigin = 'anonymous'; // perlu untuk efek 8D (Web Audio API)
         const playPauseBtn = document.getElementById('playPauseBtn');
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
         const shuffleBtn = document.getElementById('shuffleBtn');
         const repeatBtn = document.getElementById('repeatBtn');
+        const autoplayBtn = document.getElementById('autoplayBtn');
+        const audio8dBtn = document.getElementById('audio8dBtn');
         const volumeSlider = document.getElementById('volumeSlider');
         const volumeIcon = document.getElementById('volumeIcon');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
@@ -501,9 +554,19 @@
                     item.classList.add('active');
                 }
                 item.innerHTML = `
-                    <span class="rt-label">${song.rt}</span>
+                    <span class="rt-label" contenteditable="true" spellcheck="false">${song.rt}</span>
                     <span class="song-name">${song.title}</span>
                 `;
+                const rtLabelEl = item.querySelector('.rt-label');
+                // Klik di label RT buat edit teks -- jangan sampai ikut memicu ganti lagu.
+                rtLabelEl.addEventListener('click', (e) => e.stopPropagation());
+                rtLabelEl.addEventListener('input', () => {
+                    songs[index].rt = rtLabelEl.textContent;
+                    if (index === currentSongIndex) songRT.textContent = rtLabelEl.textContent;
+                });
+                rtLabelEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); rtLabelEl.blur(); }
+                });
                 item.addEventListener('click', () => {
                     const wasPlaying = isPlaying;
                     loadSong(index);
@@ -569,8 +632,16 @@
         }
 
         // Dipanggil saat lagu selesai sendiri (bukan diklik manual) --
-        // di sinilah mode "Ulang" (repeat) benar-benar berlaku.
+        // di sinilah mode "Ulang" (repeat) dan "Autoplay" benar-benar berlaku.
         function handleSongEnd() {
+            if (!isAutoplay) {
+                // Autoplay dimatikan -- berhenti total, jangan lanjut ke lagu apa pun.
+                pauseSong();
+                audioPlayer.currentTime = 0;
+                progressFill.style.width = '0%';
+                currentTimeEl.textContent = '00:00';
+                return;
+            }
             if (repeatMode === 'one') {
                 audioPlayer.currentTime = 0;
                 playSong();
@@ -664,6 +735,57 @@
         }
         document.addEventListener('fullscreenchange', syncFullscreenBtn);
         document.addEventListener('webkitfullscreenchange', syncFullscreenBtn);
+
+        // Autoplay -- kalau dimatikan, lagu berhenti total begitu selesai
+        // (lihat handleSongEnd), tidak lompat ke lagu berikutnya sendiri.
+        autoplayBtn.addEventListener('click', () => {
+            isAutoplay = !isAutoplay;
+            autoplayBtn.classList.toggle('active', isAutoplay);
+            autoplayBtn.title = isAutoplay
+                ? 'Lanjut otomatis ke lagu berikutnya: Aktif'
+                : 'Lanjut otomatis ke lagu berikutnya: Mati';
+        });
+
+        // Efek 8D Audio -- panning stereo yang berputar pelan-pelan lewat
+        // Web Audio API. Graph-nya cuma dibuat SEKALI (createMediaElementSource
+        // cuma boleh dipanggil sekali per elemen <audio>), lalu tetap
+        // tersambung terus -- saat 8D "mati", pan-nya cuma dikembalikan ke
+        // tengah (0), audio tetap kedengaran normal seperti biasa.
+        // CATATAN: butuh audio yang sama-origin (upload dari storage = aman)
+        // atau server sumbernya izinkan CORS -- kalau tidak, browser akan
+        // membisukan audio begitu masuk Web Audio API (bukan bug di sini).
+        let audioCtx = null, sourceNode = null, pannerNode = null;
+        let is8D = false, panStartTime = 0, panRafId = null;
+
+        function ensureAudioGraph() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            sourceNode = audioCtx.createMediaElementSource(audioPlayer);
+            pannerNode = audioCtx.createStereoPanner();
+            sourceNode.connect(pannerNode).connect(audioCtx.destination);
+        }
+
+        function run8DPanLoop() {
+            if (!is8D) return;
+            const elapsed = audioCtx.currentTime - panStartTime;
+            pannerNode.pan.value = Math.sin(elapsed * 0.6); // ~10 detik per putaran kiri-kanan
+            panRafId = requestAnimationFrame(run8DPanLoop);
+        }
+
+        audio8dBtn.addEventListener('click', () => {
+            ensureAudioGraph();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            is8D = !is8D;
+            audio8dBtn.classList.toggle('active', is8D);
+            audio8dBtn.title = is8D ? 'Efek 8D Audio: Aktif' : 'Efek 8D Audio: Mati';
+            if (is8D) {
+                panStartTime = audioCtx.currentTime;
+                run8DPanLoop();
+            } else {
+                if (panRafId) cancelAnimationFrame(panRafId);
+                pannerNode.pan.value = 0;
+            }
+        });
 
         // Fitur Upload dari Storage
         uploadBtn.addEventListener('click', () => fileInput.click());
