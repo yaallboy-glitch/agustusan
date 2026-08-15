@@ -525,6 +525,7 @@
                     </div>
                     <button class="pill-btn" id="audio8dBtn" title="Efek 8D Audio: Mati">🎧 8D</button>
                     <button class="pill-btn" id="downloadHQBtn" title="Render lagu ini lewat filter penjernih lalu unduh sebagai WAV (lossless) untuk diputar offline">⬇️ HQ WAV</button>
+                    <button class="pill-btn active" id="autoHqBtn" title="Setiap kali upload lagu, otomatis dirender & didownload jadi WAV kualitas maksimal: Aktif">AUTO HQ</button>
                 </div>
                 <div class="hq-status" id="hqStatus" style="display:none; font-size:0.78rem; color:#888; margin-top:8px;"></div>
             </div>
@@ -583,7 +584,12 @@
         let isAutoplay = true;
 
         const audioPlayer = document.getElementById('audioPlayer');
-        audioPlayer.crossOrigin = 'anonymous'; // perlu untuk efek 8D (Web Audio API)
+        // CATATAN: sebelumnya ada `audioPlayer.crossOrigin = 'anonymous'` di sini.
+        // Itu DIHAPUS karena di Safari/iPadOS, atribut crossOrigin pada <audio>
+        // sering bikin file blob: (yaitu SEMUA lagu yang di-upload manual di
+        // player ini) gagal dimuat/diputar sama sekali. Semua sumber lagu di
+        // sini memang selalu dari upload (blob: URL, satu origin dengan
+        // halaman ini), jadi crossOrigin memang tidak dibutuhkan.
         const playPauseBtn = document.getElementById('playPauseBtn');
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
@@ -592,6 +598,8 @@
         const autoplayBtn = document.getElementById('autoplayBtn');
         const audio8dBtn = document.getElementById('audio8dBtn');
         const downloadHQBtn = document.getElementById('downloadHQBtn');
+        const autoHqBtn = document.getElementById('autoHqBtn');
+        let isAutoHq = true; // upload lagu langsung dirender & didownload otomatis jadi WAV HQ
         const hqStatus = document.getElementById('hqStatus');
         const volumeSlider = document.getElementById('volumeSlider');
         const volumeIcon = document.getElementById('volumeIcon');
@@ -936,8 +944,8 @@
         //     didapat dari sumbernya, tanpa kehilangan data akibat
         //     kompresi ulang.
         // =========================================================
-        async function renderAndDownloadWav() {
-            const song = songs[currentSongIndex];
+        async function renderAndDownloadWav(songOverride) {
+            const song = songOverride || songs[currentSongIndex];
             if (!song || !song.src) {
                 alert('Belum ada lagu di slot ini untuk dirender.');
                 return;
@@ -946,7 +954,7 @@
             downloadHQBtn.disabled = true;
             downloadHQBtn.textContent = '⏳ Merender...';
             hqStatus.style.display = 'block';
-            hqStatus.textContent = 'Mengambil & mendekode audio...';
+            hqStatus.textContent = `Mengambil & mendekode "${song.title}"...`;
 
             try {
                 const resp = await fetch(song.src);
@@ -1071,6 +1079,14 @@
 
         downloadHQBtn.addEventListener('click', renderAndDownloadWav);
 
+        autoHqBtn.addEventListener('click', () => {
+            isAutoHq = !isAutoHq;
+            autoHqBtn.classList.toggle('active', isAutoHq);
+            autoHqBtn.title = isAutoHq
+                ? 'Setiap kali upload lagu, otomatis dirender & didownload jadi WAV kualitas maksimal: Aktif'
+                : 'Setiap kali upload lagu, otomatis dirender & didownload jadi WAV kualitas maksimal: Mati';
+        });
+
         // Tombol umum -- tambah lagu BARU di luar 15 slot RT (bukan isi slot RT)
         uploadBtn.addEventListener('click', () => { pendingUploadIndex = null; fileInput.click(); });
         
@@ -1079,6 +1095,7 @@
             if (file) {
                 const songUrl = URL.createObjectURL(file);
                 const songName = file.name.replace(/\.[^/.]+$/, ""); // Hapus ekstensi .mp3 dll
+                let uploadedSong; // referensi song object yang baru diisi, untuk auto-render HQ
 
                 if (pendingUploadIndex !== null) {
                     // Isi/ganti lagu KHUSUS slot RT yang tombol upload-nya diklik
@@ -1087,6 +1104,7 @@
                     songs[idx].src = songUrl;
                     songs[idx].cover = "LAGU<br>UPLOAD";
                     pendingUploadIndex = null;
+                    uploadedSong = songs[idx];
                     if (idx === currentSongIndex) {
                         loadSong(idx); // refresh tampilan pemutar kalau slot ini lagi aktif
                     } else {
@@ -1094,16 +1112,24 @@
                     }
                 } else {
                     // Tombol umum -- tambah baris baru di akhir daftar
-                    songs.push({
+                    const newSong = {
                         rt: "UPLOAD",
                         title: songName,
                         src: songUrl,
                         cover: "LAGU<br>UPLOAD"
-                    });
+                    };
+                    songs.push(newSong);
+                    uploadedSong = newSong;
                     renderPlaylist();
                     loadSong(songs.length - 1);
                 }
-                
+
+                // Auto-render ke WAV kualitas maksimal & langsung download,
+                // biar tidak perlu klik tombol HQ WAV manual satu-satu per lagu.
+                if (isAutoHq && uploadedSong) {
+                    renderAndDownloadWav(uploadedSong);
+                }
+
                 // Reset input agar bisa upload file dengan nama yang sama lagi
                 fileInput.value = '';
             }
