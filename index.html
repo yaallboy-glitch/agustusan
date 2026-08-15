@@ -972,9 +972,11 @@
                 }
 
                 item.addEventListener('click', () => {
-                    const wasPlaying = isPlaying;
+                    // Klik lagu di daftar cuma MEMUAT/memilih lagunya --
+                    // tidak langsung diputar otomatis, walau tadinya lagu
+                    // lain lagi diputar. User yang harus tekan tombol ▶️
+                    // sendiri kalau memang mau memutar lagu itu.
                     loadSong(index);
-                    if (wasPlaying) playSong();
                 });
                 playlistContainer.appendChild(item);
             });
@@ -1067,8 +1069,20 @@
                 audioPlayer.removeAttribute('src');
                 audioPlayer.load();
             }
-            
-            pauseSong(); 
+
+            // Hentikan status "playing" & elemen <audio>-nya, TAPI JANGAN
+            // suspend AudioContext di sini. Nge-suspend AudioContext tepat
+            // pas src lagu diganti (lalu resume lagi sepersekian detik
+            // kemudian untuk lanjut ke lagu berikutnya) adalah biang bug
+            // "suara hilang pas ganti lagu / pas autoplay" di beberapa
+            // browser (terutama Safari/iPad) -- AudioContext dan
+            // MediaElementSource-nya jadi telat "connect" ulang.
+            // AudioContext HANYA kita suspend saat user benar-benar
+            // menekan tombol PAUSE manual (lihat pauseSong()).
+            isPlaying = false;
+            playPauseBtn.innerHTML = '▶️';
+            audioPlayer.pause();
+
             progressFill.style.width = '0%';
             currentTimeEl.textContent = '00:00';
             durationTimeEl.textContent = '00:00';
