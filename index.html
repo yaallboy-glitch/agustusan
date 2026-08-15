@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agustusan Pemutar Lagu</title>
+    <style>
+        :root {
+            --primary-red: #FF0000;
+            --dark-red: #CC0000;
+            --white: #FFFFFF;
+            --bg-color: #F5F5F5;
+            --text-dark: #333333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary-red), var(--dark-red));
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: var(--white);
+            width: 100%;
+            max-width: 400px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--primary-red);
+            color: var(--white);
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border-bottom: 3px solid var(--dark-red);
+        }
+
+        .now-playing {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .cover-art {
+            width: 150px;
+            height: 150px;
+            background-color: #eee;
+            margin: 0 auto 15px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 3px solid var(--primary-red);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--primary-red);
+            font-weight: bold;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .cover-art img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .song-title {
+            margin: 0;
+            font-size: 1.4rem;
+            color: var(--text-dark);
+        }
+
+        .song-rt {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: #ddd;
+            border-radius: 3px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-red);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+
+        .btn-control {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-control:hover {
+            transform: scale(1.2);
+            color: var(--primary-red);
+        }
+
+        .btn-play {
+            font-size: 2.5rem;
+        }
+
+        .playlist-section {
+            padding: 15px 20px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .playlist-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--primary-red);
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .playlist-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .playlist-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .playlist-item.active {
+            background-color: rgba(255, 0, 0, 0.1);
+            color: var(--primary-red);
+            font-weight: bold;
+        }
+
+        .playlist-item .rt-label {
+            font-size: 0.9rem;
+        }
+
+        .playlist-item .song-name {
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .playlist-item.active .song-name {
+            color: var(--primary-red);
+        }
+
+        .add-song-btn {
+            display: block;
+            width: 90%;
+            margin: 10px auto 20px;
+            padding: 10px;
+            background: var(--white);
+            border: 2px dashed var(--primary-red);
+            color: var(--primary-red);
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .add-song-btn:hover {
+            background: var(--primary-red);
+            color: var(--white);
+        }
+
+        .footer {
+            background-color: #f9f9f9;
+            padding: 15px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #666;
+            border-top: 1px solid #eee;
+        }
+
+        .footer strong {
+            color: var(--primary-red);
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        /* Hide actual audio element */
+        audio {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">AGUSTUSAN PEMUTAR LAGU</div>
+
+        <div class="now-playing">
+            <div class="cover-art" id="coverArt">
+                DIRGAHAYU INDONESIA
+            </div>
+            <h2 class="song-title" id="songTitle">Indonesia Pusaka</h2>
+            <p class="song-rt" id="songRT">RT 01</p>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="time-display">
+                    <span id="currentTime">00:00</span>
+                    <span id="durationTime">00:00</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn-control" id="prevBtn">⏮</button>
+                <button class="btn-control btn-play" id="playPauseBtn">▶️</button>
+                <button class="btn-control" id="nextBtn">⏭</button>
+            </div>
+        </div>
+
+        <div class="playlist-section">
+            <div class="playlist-title">DAFTAR LAGU TIAP RT (15)</div>
+            <div id="playlistContainer">
+                <!-- Diisi oleh JavaScript -->
+            </div>
+        </div>
+
+        <button class="add-song-btn" onclick="alert('Fitur tambah lagu belum diimplementasikan.')">+ Tambah Lagu</button>
+
+        <div class="footer">
+            <strong>Dirgahayu Republik Indonesia!</strong>
+            Semangat Kebersamaan, Meriahkan Agustusan!
+        </div>
+    </div>
+
+    <audio id="audioPlayer">
+        <!-- Source akan diisi via JS -->
+    </audio>
+
+    <script>
+        // Data Dummy Lagu (RT 01 - RT 15)
+        // Catatan: file audio menggunakan sample gratisan dari internet untuk demo
+        const songs = [
+            { rt: "RT 01", title: "Indonesia Pusaka", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+01" },
+            { rt: "RT 02", title: "Bagimu Negeri", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+02" },
+            { rt: "RT 03", title: "Garuda Pancasila", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+03" },
+            { rt: "RT 04", title: "Halo-Halo Bandung", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+04" },
+            { rt: "RT 05", title: "Maju Tak Gentar", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+05" },
+            { rt: "RT 06", title: "Bangun Pemudi Pemuda", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+06" },
+            { rt: "RT 07", title: "Berita Kepada Kawan", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+07" },
+            { rt: "RT 08", title: "Dari Sabang Sampai Merauke", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+08" },
+            { rt: "RT 09", title: "Gugur Bunga", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+09" },
+            { rt: "RT 10", title: "Indonesia Jaya", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+10" },
+            { rt: "RT 11", title: "Ibu Pertiwi", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+11" },
+            { rt: "RT 12", title: "Melati Suci", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+12" },
+            { rt: "RT 13", title: "Nenek Moyangku Seorang Pelaut", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+13" },
+            { rt: "RT 14", title: "Pemuda", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+14" },
+            { rt: "RT 15", title: "Satu Nusa Satu Bangsa", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3", cover: "https://via.placeholder.com/150/FF0000/FFFFFF?text=RT+15" }
+        ];
+
+        let currentSongIndex = 0;
+        let isPlaying = false;
+
+        const audioPlayer = document.getElementById('audioPlayer');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const songTitle = document.getElementById('songTitle');
+        const songRT = document.getElementById('songRT');
+        const coverArt = document.getElementById('coverArt');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const currentTimeEl = document.getElementById('currentTime');
+        const durationTimeEl = document.getElementById('durationTime');
+        const playlistContainer = document.getElementById('playlistContainer');
+
+        // Render Playlist
+        function renderPlaylist() {
+            playlistContainer.innerHTML = '';
+            songs.forEach((song, index) => {
+                const item = document.createElement('div');
+                item.classList.add('playlist-item');
+                if (index === currentSongIndex) {
+                    item.classList.add('active');
+                }
+                item.innerHTML = `
+                    <span class="rt-label">${song.rt}</span>
+                    <span class="song-name">${song.title}</span>
+                `;
+                item.addEventListener('click', () => {
+                    loadSong(index);
+                    playSong();
+                });
+                playlistContainer.appendChild(item);
+            });
+        }
+
+        // Load Song
+        function loadSong(index) {
+            currentSongIndex = index;
+            const song = songs[index];
+            songTitle.textContent = song.title;
+            songRT.textContent = song.rt;
+            coverArt.innerHTML = `<img src="${song.cover}" alt="${song.title}">`;
+            audioPlayer.src = song.src;
+            renderPlaylist(); // Update active state
+        }
+
+        // Play Song
+        function playSong() {
+            isPlaying = true;
+            playPauseBtn.innerHTML = '⏸️';
+            audioPlayer.play();
+        }
+
+        // Pause Song
+        function pauseSong() {
+            isPlaying = false;
+            playPauseBtn.innerHTML = '▶️';
+            audioPlayer.pause();
+        }
+
+        // Previous Song
+        function prevSong() {
+            currentSongIndex--;
+            if (currentSongIndex < 0) {
+                currentSongIndex = songs.length - 1;
+            }
+            loadSong(currentSongIndex);
+            playSong();
+        }
+
+        // Next Song
+        function nextSong() {
+            currentSongIndex++;
+            if (currentSongIndex > songs.length - 1) {
+                currentSongIndex = 0;
+            }
+            loadSong(currentSongIndex);
+            playSong();
+        }
+
+        // Update Progress Bar
+        function updateProgress(e) {
+            const { duration, currentTime } = e.srcElement;
+            const progressPercent = (currentTime / duration) * 100;
+            progressFill.style.width = `${progressPercent}%`;
+            currentTimeEl.textContent = formatTime(currentTime);
+            durationTimeEl.textContent = formatTime(duration);
+        }
+
+        // Set Progress Bar on Click
+        function setProgress(e) {
+            const width = this.clientWidth;
+            const clickX = e.offsetX;
+            const duration = audioPlayer.duration;
+            audioPlayer.currentTime = (clickX / width) * duration;
+        }
+
+        // Format Time
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Event Listeners
+        playPauseBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                pauseSong();
+            } else {
+                playSong();
+            }
+        });
+
+        prevBtn.addEventListener('click', prevSong);
+        nextBtn.addEventListener('click', nextSong);
+        audioPlayer.addEventListener('timeupdate', updateProgress);
+        audioPlayer.addEventListener('ended', nextSong);
+        progressBar.addEventListener('click', setProgress);
+
+        // Initial Load
+        loadSong(0);
+    </script>
+</body>
+</html>
