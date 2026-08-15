@@ -391,6 +391,18 @@
             border-color: var(--dark-red);
         }
 
+        /* Lagu yang dipilih (diklik) TAPI belum ditekan ▶️ -- beda dari
+           .active (yang benar-benar sedang termuat/main di pemutar).
+           Dipakai supaya user tahu lagu mana yang bakal mulai diputar
+           kalau tombol Play ditekan, tanpa menghentikan lagu yang lagi
+           berjalan sekarang. */
+        .playlist-item.pending-select {
+            border-color: var(--primary-red);
+            border-style: dashed;
+            border-width: 2px;
+            background-color: #fff3f3;
+        }
+
         .playlist-item .rt-label {
             font-weight: bold;
             font-size: 0.8rem;
@@ -691,6 +703,12 @@
         let pendingUploadIndex = null; // slot RT yang lagi nunggu file diupload (null = tombol umum)
 
         let currentSongIndex = 0;
+        // Lagu yang diklik di daftar SAAT lagu lain masih berjalan --
+        // cuma "ditandai" dulu, belum benar-benar dimuat/diputar. Null
+        // berarti tidak ada lagu yang lagi "menunggu" (lagu terpilih =
+        // currentSongIndex seperti biasa). Lihat item.addEventListener
+        // di renderPlaylist() dan playPauseBtn di bawah.
+        let pendingSelectIndex = null;
         let isPlaying = false;
         let isShuffle = false;
         let repeatMode = 'off'; // 'off' | 'all' | 'one'
@@ -892,6 +910,9 @@
                 if (index === currentSongIndex) {
                     item.classList.add('active');
                 }
+                if (pendingSelectIndex !== null && index === pendingSelectIndex && index !== currentSongIndex) {
+                    item.classList.add('pending-select');
+                }
 
                 if (currentMode === 'rt15') {
                     // ===== Preset 15 Lagu RT: 15 slot tetap, per-slot upload/hapus =====
@@ -974,11 +995,25 @@
                 }
 
                 item.addEventListener('click', () => {
-                    // Klik lagu di daftar cuma MEMUAT/memilih lagunya --
-                    // tidak langsung diputar otomatis, walau tadinya lagu
-                    // lain lagi diputar. User yang harus tekan tombol ▶️
-                    // sendiri kalau memang mau memutar lagu itu.
-                    loadSong(index);
+                    // Kalau tidak ada lagu yang lagi berjalan, aman untuk
+                    // langsung memuat lagu yang diklik seperti biasa (tidak
+                    // ada apa pun yang perlu "dilindungi" dari terhenti).
+                    if (!isPlaying) {
+                        pendingSelectIndex = null;
+                        loadSong(index);
+                        return;
+                    }
+                    // Ada lagu yang lagi berjalan -- klik lagu lain di
+                    // daftar TIDAK BOLEH menghentikannya. Cuma tandai
+                    // lagu ini sebagai "terpilih" (highlight putus-putus).
+                    // Lagu yang sedang main tetap lanjut sampai user
+                    // benar-benar menekan tombol ▶️.
+                    if (index === currentSongIndex) {
+                        pendingSelectIndex = null;
+                    } else {
+                        pendingSelectIndex = index;
+                    }
+                    renderPlaylist();
                 });
                 playlistContainer.appendChild(item);
             });
@@ -1056,6 +1091,10 @@
 
         // Load Song (Hanya memuat, TIDAK langsung play)
         function loadSong(index) {
+            // Apa pun jalur yang memanggil loadSong (klik daftar, tombol
+            // play, next/prev, dsb), begitu sebuah lagu benar-benar dimuat,
+            // tandai "menunggu" yang lama jadi tidak berlaku lagi.
+            pendingSelectIndex = null;
             if (!songs[index]) {
                 showEmptyPlayerState();
                 return;
@@ -1101,31 +1140,70 @@
                 return;
             }
             ensureAudioGraph();
+            audioOpToken++; // batalkan "janji" fade-out dari pauseSong() sebelumnya kalau ada
             isPlaying = true;
             playPauseBtn.innerHTML = '⏸️';
+            // Bisukan dulu (gain 0) SEBELUM context di-resume/audio mulai
+            // diputar -- kalau tidak, detik pertama context "hidup" lagi
+            // suka kedengaran sebagai klik/pop pendek ("treeet").
+            masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+            masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
             // Pastikan rangkaian Web Audio-nya sudah benar-benar aktif
             // (resume) SEBELUM elemen audio-nya diputar -- kalau kebalik
             // urutannya, sepersekian detik pertama bisa diam/glitch karena
             // context-nya belum siap menerima suara.
-            const resumeThenPlay = () => audioPlayer.play();
+            const startPlaying = () => {
+                const playPromise = audioPlayer.play();
+                // Baru setelah play() benar-benar jalan, naikkan volumenya
+                // pelan-pelan (fade in) -- ini yang menghilangkan bunyi
+                // "treeet/bocor" pas ditekan play.
+                const fadeIn = () => {
+                    const t = audioCtx.currentTime;
+                    masterGain.gain.cancelScheduledValues(t);
+                    masterGain.gain.setValueAtTime(0, t);
+                    masterGain.gain.linearRampToValueAtTime(1, t + FADE_SECONDS);
+                };
+                if (playPromise && typeof playPromise.then === 'function') {
+                    playPromise.then(fadeIn).catch(fadeIn);
+                } else {
+                    fadeIn();
+                }
+            };
             if (audioCtx.state === 'suspended') {
-                audioCtx.resume().then(resumeThenPlay).catch(resumeThenPlay);
+                audioCtx.resume().then(startPlaying).catch(startPlaying);
             } else {
-                resumeThenPlay();
+                startPlaying();
             }
         }
 
         function pauseSong() {
             isPlaying = false;
             playPauseBtn.innerHTML = '▶️';
-            audioPlayer.pause();
-            // Ikut hentikan rangkaian Web Audio-nya (bukan cuma elemen
-            // <audio>-nya) -- kalau tidak, rangkaian filter/compressor
-            // tetap "hidup" di belakang layar dan suka nyisain sepotong
-            // buffer terakhir yang terdengar seperti "ngulang" pas nanti
-            // ditekan play lagi.
-            if (audioCtx && audioCtx.state === 'running') {
-                audioCtx.suspend();
+            audioOpToken++;
+            const myToken = audioOpToken;
+            if (audioCtx && audioCtx.state === 'running' && masterGain) {
+                // Turunkan volume pelan-pelan dulu (fade out) SEBELUM
+                // benar-benar pause elemen <audio> & suspend context.
+                // Kalau langsung dipotong mendadak di tengah gelombang
+                // suara, itu yang kedengaran sebagai klik/pop ("treeet")
+                // atau sisa suara "bocor" sepersekian detik.
+                const t = audioCtx.currentTime;
+                masterGain.gain.cancelScheduledValues(t);
+                masterGain.gain.setValueAtTime(masterGain.gain.value, t);
+                masterGain.gain.linearRampToValueAtTime(0, t + FADE_SECONDS);
+                setTimeout(() => {
+                    // Kalau selama jeda fade ini ada aksi play/pause baru
+                    // (misal user pencet play lagi dengan cepat), token
+                    // sudah berubah -- biarkan aksi yang baru itu yang
+                    // menentukan status akhirnya, jangan dobel-pause.
+                    if (audioOpToken !== myToken) return;
+                    audioPlayer.pause();
+                    if (audioCtx && audioCtx.state === 'running') {
+                        audioCtx.suspend();
+                    }
+                }, FADE_SECONDS * 1000 + 30);
+            } else {
+                audioPlayer.pause();
             }
         }
 
@@ -1221,7 +1299,19 @@
         }
 
         // Event Listeners
-        playPauseBtn.addEventListener('click', () => isPlaying ? pauseSong() : playSong());
+        playPauseBtn.addEventListener('click', () => {
+            // Ada lagu lain yang sudah "ditandai" (diklik di daftar) sementara
+            // lagu sekarang masih berjalan -- baru SEKARANG kita benar-benar
+            // pindah: muat lagu yang ditandai lalu langsung mainkan.
+            if (pendingSelectIndex !== null && pendingSelectIndex !== currentSongIndex) {
+                const targetIndex = pendingSelectIndex;
+                pendingSelectIndex = null;
+                loadSong(targetIndex);
+                playSong();
+                return;
+            }
+            isPlaying ? pauseSong() : playSong();
+        });
         prevBtn.addEventListener('click', prevSong);
         nextBtn.addEventListener('click', nextSong);
         audioPlayer.addEventListener('timeupdate', updateProgress);
@@ -1303,8 +1393,24 @@
         // CATATAN: butuh audio yang sama-origin (upload dari storage = aman)
         // atau server sumbernya izinkan CORS -- kalau tidak, browser akan
         // membisukan audio begitu masuk Web Audio API (bukan bug di sini).
-        let audioCtx = null, sourceNode = null, pannerNode = null;
+        let audioCtx = null, sourceNode = null, pannerNode = null, masterGain = null;
         let is8D = false, panStartTime = 0, panRafId = null;
+
+        // Lama fade in/out (detik) yang dipakai tiap kali play/pause. Ini
+        // obat untuk bug suara "treeet"/bocor pas pause-play: kalau
+        // AudioContext di-suspend/resume MENDADAK pas gelombang suara lagi
+        // di tengah (bukan pas nilainya nol), telinga dengar itu sebagai
+        // "klik/pop" pendek. Solusinya: turunkan volume pelan-pelan dulu
+        // (fade out) SEBELUM benar-benar pause/suspend, dan naikkan
+        // pelan-pelan (fade in) SETELAH play/resume -- bukan langsung full
+        // volume. 18ms sudah cukup untuk menghilangkan klik tapi masih
+        // terasa instan buat telinga.
+        const FADE_SECONDS = 0.018;
+        // Penomoran setiap aksi play/pause -- supaya kalau user pencet
+        // play/pause/next dengan cepat berturut-turut, sisa fade-out dari
+        // aksi SEBELUMNYA yang telat selesai tidak salah nge-pause aksi
+        // yang BARU (lihat pemakaiannya di pauseSong()).
+        let audioOpToken = 0;
 
         // =========================================================
         // RANGKAIAN PENJERNIH & PENGUAT KUALITAS ("mastering chain")
@@ -1375,8 +1481,14 @@
             pannerNode = audioCtx.createStereoPanner();
 
             const enhancer = buildEnhancerChain(audioCtx);
+            // masterGain ditaruh PALING UJUNG rangkaian (sebelum speaker) --
+            // node inilah yang kita naik-turunkan pelan-pelan tiap play/pause
+            // supaya tidak ada suara "klik/pop/treeet" (lihat FADE_SECONDS).
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 1;
             sourceNode.connect(pannerNode).connect(enhancer.input);
-            enhancer.output.connect(audioCtx.destination);
+            enhancer.output.connect(masterGain);
+            masterGain.connect(audioCtx.destination);
         }
 
         function run8DPanLoop() {
