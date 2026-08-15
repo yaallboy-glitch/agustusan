@@ -35,6 +35,17 @@
             flex-direction: column;
         }
 
+        /* Tampilan saat fullscreen -- isi layar penuh, tanpa sudut membulat */
+        .container:fullscreen,
+        .container:-webkit-full-screen {
+            max-width: 100%;
+            width: 100%;
+            height: 100%;
+            border-radius: 0;
+            justify-content: center;
+            background-color: var(--white);
+        }
+
         .header {
             background: var(--primary-red);
             color: var(--white);
@@ -48,6 +59,12 @@
         }
 
         .header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-right {
             display: flex;
             align-items: center;
             gap: 10px;
@@ -69,6 +86,25 @@
             font-weight: bold;
             min-width: 50px;
             display: inline-block;
+        }
+
+        .fullscreen-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: var(--white);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .fullscreen-btn:hover {
+            background: rgba(255,255,255,0.35);
         }
 
         /* Layout Pemutar di Atas Tengah */
@@ -152,7 +188,7 @@
             display: flex;
             justify-content: flex-start;
             align-items: center;
-            gap: 25px;
+            gap: 20px;
             margin-top: 10px;
         }
 
@@ -162,7 +198,7 @@
             font-size: 1.8rem;
             color: var(--text-dark);
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.2s, color 0.2s;
         }
 
         .btn-control:hover {
@@ -173,6 +209,39 @@
         .btn-play {
             font-size: 3rem;
             color: var(--primary-red);
+        }
+
+        /* Tombol shuffle & repeat -- lebih kecil dari tombol utama, ada state aktif */
+        .btn-toggle {
+            font-size: 1.2rem;
+            opacity: 0.45;
+        }
+
+        .btn-toggle.active {
+            opacity: 1;
+            color: var(--primary-red);
+        }
+
+        /* Volume */
+        .volume-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .volume-container span {
+            font-size: 1.1rem;
+            width: 22px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .volume-container input[type="range"] {
+            flex: 1;
+            max-width: 160px;
+            accent-color: var(--primary-red);
+            cursor: pointer;
         }
 
         /* Layout Playlist di Bawah */
@@ -288,6 +357,9 @@
             .controls {
                 justify-content: center;
             }
+            .volume-container {
+                justify-content: center;
+            }
             .playlist-items {
                 grid-template-columns: repeat(2, 1fr); /* 2 kolom di tablet */
             }
@@ -306,8 +378,11 @@
             <div class="header-title">
                 <span>🔊 AGUSTUSAN PEMUTAR LAGU</span>
             </div>
-            <div class="user-profile">
-                Nama: <span contenteditable="true" id="userName">Tamu</span>
+            <div class="header-right">
+                <div class="user-profile">
+                    Nama: <span contenteditable="true" id="userName">Tamu</span>
+                </div>
+                <button class="fullscreen-btn" id="fullscreenBtn" title="Layar Penuh">⛶</button>
             </div>
         </div>
 
@@ -331,9 +406,16 @@
                 </div>
 
                 <div class="controls">
+                    <button class="btn-control btn-toggle" id="shuffleBtn" title="Acak">🔀</button>
                     <button class="btn-control" id="prevBtn">⏮</button>
                     <button class="btn-control btn-play" id="playPauseBtn">▶️</button>
                     <button class="btn-control" id="nextBtn">⏭</button>
+                    <button class="btn-control btn-toggle" id="repeatBtn" title="Ulang: Mati">🔁</button>
+                </div>
+
+                <div class="volume-container">
+                    <span id="volumeIcon">🔊</span>
+                    <input type="range" id="volumeSlider" min="0" max="100" value="100" title="Volume">
                 </div>
             </div>
         </div>
@@ -383,11 +465,18 @@
 
         let currentSongIndex = 0;
         let isPlaying = false;
+        let isShuffle = false;
+        let repeatMode = 'off'; // 'off' | 'all' | 'one'
 
         const audioPlayer = document.getElementById('audioPlayer');
         const playPauseBtn = document.getElementById('playPauseBtn');
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const repeatBtn = document.getElementById('repeatBtn');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeIcon = document.getElementById('volumeIcon');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
         const songTitle = document.getElementById('songTitle');
         const songRT = document.getElementById('songRT');
         const coverArt = document.getElementById('coverArt');
@@ -416,7 +505,9 @@
                     <span class="song-name">${song.title}</span>
                 `;
                 item.addEventListener('click', () => {
+                    const wasPlaying = isPlaying;
                     loadSong(index);
+                    if (wasPlaying) playSong();
                 });
                 playlistContainer.appendChild(item);
             });
@@ -451,18 +542,50 @@
             audioPlayer.pause();
         }
 
+        // Ambil index acak yang beda dari index sekarang (kalau lagu > 1)
+        function getRandomIndex(exclude) {
+            if (songs.length <= 1) return 0;
+            let idx;
+            do { idx = Math.floor(Math.random() * songs.length); } while (idx === exclude);
+            return idx;
+        }
+
         function prevSong() {
-            currentSongIndex--;
-            if (currentSongIndex < 0) currentSongIndex = songs.length - 1;
+            const wasPlaying = isPlaying;
+            currentSongIndex = isShuffle
+                ? getRandomIndex(currentSongIndex)
+                : (currentSongIndex - 1 + songs.length) % songs.length;
             loadSong(currentSongIndex);
-            if(isPlaying) playSong(); 
+            if (wasPlaying) playSong();
         }
 
         function nextSong() {
-            currentSongIndex++;
-            if (currentSongIndex > songs.length - 1) currentSongIndex = 0;
+            const wasPlaying = isPlaying;
+            currentSongIndex = isShuffle
+                ? getRandomIndex(currentSongIndex)
+                : (currentSongIndex + 1) % songs.length;
             loadSong(currentSongIndex);
-            if(isPlaying) playSong();
+            if (wasPlaying) playSong();
+        }
+
+        // Dipanggil saat lagu selesai sendiri (bukan diklik manual) --
+        // di sinilah mode "Ulang" (repeat) benar-benar berlaku.
+        function handleSongEnd() {
+            if (repeatMode === 'one') {
+                audioPlayer.currentTime = 0;
+                playSong();
+                return;
+            }
+            // Repeat mati & bukan shuffle & sudah di lagu terakhir -> berhenti,
+            // jangan lompat balik ke lagu pertama sendiri.
+            if (repeatMode === 'off' && !isShuffle && currentSongIndex === songs.length - 1) {
+                pauseSong();
+                audioPlayer.currentTime = 0;
+                progressFill.style.width = '0%';
+                currentTimeEl.textContent = '00:00';
+                return;
+            }
+            nextSong();
         }
 
         function updateProgress(e) {
@@ -494,8 +617,53 @@
         prevBtn.addEventListener('click', prevSong);
         nextBtn.addEventListener('click', nextSong);
         audioPlayer.addEventListener('timeupdate', updateProgress);
-        audioPlayer.addEventListener('ended', nextSong);
+        audioPlayer.addEventListener('ended', handleSongEnd);
         progressBar.addEventListener('click', setProgress);
+
+        // Shuffle
+        shuffleBtn.addEventListener('click', () => {
+            isShuffle = !isShuffle;
+            shuffleBtn.classList.toggle('active', isShuffle);
+            shuffleBtn.title = isShuffle ? 'Acak: Aktif' : 'Acak: Mati';
+        });
+
+        // Repeat -- siklus: mati -> ulang semua -> ulang 1 lagu -> mati
+        const repeatIcons = { off: '🔁', all: '🔁', one: '🔂' };
+        const repeatTitles = { off: 'Ulang: Mati', all: 'Ulang: Semua Lagu', one: 'Ulang: Lagu Ini' };
+        repeatBtn.addEventListener('click', () => {
+            repeatMode = repeatMode === 'off' ? 'all' : (repeatMode === 'all' ? 'one' : 'off');
+            repeatBtn.innerHTML = repeatIcons[repeatMode];
+            repeatBtn.title = repeatTitles[repeatMode];
+            repeatBtn.classList.toggle('active', repeatMode !== 'off');
+        });
+
+        // Volume
+        volumeSlider.addEventListener('input', () => {
+            const vol = volumeSlider.value / 100;
+            audioPlayer.volume = vol;
+            volumeIcon.textContent = vol == 0 ? '🔇' : (vol < 0.5 ? '🔉' : '🔊');
+        });
+        audioPlayer.volume = volumeSlider.value / 100;
+
+        // Fullscreen (dengan fallback vendor prefix buat browser/HP lama)
+        fullscreenBtn.addEventListener('click', () => {
+            const el = document.querySelector('.container');
+            const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+            if (!isFs) {
+                const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+                if (req) req.call(el);
+            } else {
+                const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+                if (exit) exit.call(document);
+            }
+        });
+        function syncFullscreenBtn() {
+            const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+            fullscreenBtn.textContent = isFs ? '⤢' : '⛶';
+            fullscreenBtn.title = isFs ? 'Keluar Layar Penuh' : 'Layar Penuh';
+        }
+        document.addEventListener('fullscreenchange', syncFullscreenBtn);
+        document.addEventListener('webkitfullscreenchange', syncFullscreenBtn);
 
         // Fitur Upload dari Storage
         uploadBtn.addEventListener('click', () => fileInput.click());
