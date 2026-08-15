@@ -310,7 +310,7 @@
         .playlist-title {
             font-size: 1.1rem;
             font-weight: bold;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             color: var(--text-dark);
             border-bottom: 2px solid var(--primary-red);
             padding-bottom: 10px;
@@ -319,10 +319,46 @@
             align-items: center;
         }
 
+        /* Saklar Preset -- 15 Lagu RT vs Playlist Biasa */
+        .mode-switcher {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            border: 1.5px solid #ddd;
+            background: var(--white);
+            color: #888;
+            font-size: 0.8rem;
+            font-weight: bold;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-btn:hover {
+            border-color: var(--primary-red);
+            color: var(--primary-red);
+        }
+
+        .mode-btn.active {
+            background: var(--primary-red);
+            border-color: var(--primary-red);
+            color: var(--white);
+        }
+
         .playlist-items {
             display: grid;
             grid-template-columns: repeat(3, 1fr); /* Membagi menjadi 3 kolom */
             gap: 10px;
+        }
+
+        /* Mode Playlist Biasa -- daftar 1 kolom, lebih lega, teks lebih besar */
+        .playlist-items.normal-mode {
+            grid-template-columns: 1fr;
         }
 
         .playlist-item {
@@ -350,8 +386,8 @@
 
         .playlist-item .rt-label {
             font-weight: bold;
-            font-size: 0.9rem;
-            min-width: 50px;
+            font-size: 0.8rem;
+            min-width: 42px;
         }
 
         .playlist-item .rt-label[contenteditable="true"] {
@@ -365,6 +401,13 @@
             border-bottom-color: currentColor;
         }
 
+        .playlist-item .track-number {
+            font-weight: bold;
+            font-size: 0.85rem;
+            opacity: 0.5;
+            min-width: 26px;
+        }
+
         .playlist-item .song-name {
             font-size: 0.9rem;
             text-align: right;
@@ -375,9 +418,30 @@
             text-overflow: ellipsis;
         }
 
+        /* Preset "15 Lagu RT" -- nama lagu diperkecil biar tidak penuh,
+           soalnya harus muat 15 baris sekaligus di grid 3 kolom. */
+        .playlist-items.rt-mode .song-name {
+            font-size: 0.74rem;
+        }
+
+        /* Preset "Playlist Biasa" -- lebih lega, nama lagu rata kiri
+           mengikuti nomor urut track. */
+        .playlist-items.normal-mode .song-name {
+            font-size: 0.95rem;
+            text-align: left;
+        }
+
         .playlist-item .song-name.song-empty {
             font-style: italic;
             opacity: 0.55;
+        }
+
+        .playlist-empty {
+            text-align: center;
+            padding: 30px 15px;
+            color: #999;
+            font-style: italic;
+            font-size: 0.95rem;
         }
 
         .slot-upload-btn {
@@ -534,10 +598,14 @@
         <!-- Daftar Lagu (Bawah) -->
         <div class="playlist-section">
             <div class="playlist-title">
-                <span>DAFTAR LAGU TIAP RT</span>
+                <span id="playlistTitleLabel">DAFTAR LAGU TIAP RT</span>
                 <span id="songCount" style="font-weight: normal; font-size: 0.9rem; color: #666;">15 Lagu</span>
             </div>
-            <div class="playlist-items" id="playlistContainer">
+            <div class="mode-switcher">
+                <button type="button" class="mode-btn active" id="modeRtBtn">🏘️ Preset: 15 Lagu RT</button>
+                <button type="button" class="mode-btn" id="modeNormalBtn">🎵 Preset: Playlist Biasa</button>
+            </div>
+            <div class="playlist-items rt-mode" id="playlistContainer">
                 <!-- Diisi oleh JavaScript -->
             </div>
             
@@ -557,7 +625,8 @@
     <script>
         // 15 slot RT -- KOSONG (belum ada lagu), tinggal diisi lewat ikon
         // upload di masing-masing baris (upload per-RT, lihat renderPlaylist).
-        const songs = [
+        // songsRT15: preset "15 Lagu RT" -- 15 slot tetap, satu per RT.
+        const songsRT15 = [
             { rt: "RT 01", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
             { rt: "RT 02", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
             { rt: "RT 03", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
@@ -574,6 +643,13 @@
             { rt: "RT 14", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
             { rt: "RT 15", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" }
         ];
+
+        // songsNormal: preset "Playlist Biasa" -- daftar bebas, mulai kosong,
+        // nambah lagu sebanyak apapun lewat tombol "+ Tambah Lagu".
+        let songsNormal = [];
+
+        let currentMode = 'rt15'; // 'rt15' | 'normal'
+        let songs = songsRT15; // referensi array yang lagi aktif dipakai semua fungsi di bawah
 
         let pendingUploadIndex = null; // slot RT yang lagi nunggu file diupload (null = tombol umum)
 
@@ -612,66 +688,105 @@
         const durationTimeEl = document.getElementById('durationTime');
         const playlistContainer = document.getElementById('playlistContainer');
         const songCount = document.getElementById('songCount');
+        const playlistTitleLabel = document.getElementById('playlistTitleLabel');
+        const modeRtBtn = document.getElementById('modeRtBtn');
+        const modeNormalBtn = document.getElementById('modeNormalBtn');
         const uploadBtn = document.getElementById('uploadBtn');
         const fileInput = document.getElementById('fileInput');
 
         // Render Playlist
         function renderPlaylist() {
+            playlistContainer.classList.toggle('rt-mode', currentMode === 'rt15');
+            playlistContainer.classList.toggle('normal-mode', currentMode === 'normal');
             playlistContainer.innerHTML = '';
             songCount.textContent = `${songs.length} Lagu`;
-            
+
+            if (currentMode === 'normal' && songs.length === 0) {
+                playlistContainer.innerHTML = `<div class="playlist-empty">Belum ada lagu. Tambahkan lewat tombol "+ Tambah Lagu" di bawah ⬇️</div>`;
+                return;
+            }
+
             songs.forEach((song, index) => {
                 const item = document.createElement('div');
                 item.classList.add('playlist-item');
                 if (index === currentSongIndex) {
                     item.classList.add('active');
                 }
-                const hasSong = !!song.src;
-                item.innerHTML = `
-                    <span class="rt-label" contenteditable="true" spellcheck="false">${song.rt}</span>
-                    <span class="song-name${hasSong ? '' : ' song-empty'}">${hasSong ? song.title : 'Belum ada lagu'}</span>
-                    <button type="button" class="slot-upload-btn" title="Upload lagu untuk ${song.rt}">📤</button>
-                    <button type="button" class="slot-upload-btn" title="Hapus lagu ini">🗑️</button>
-                `;
-                const rtLabelEl = item.querySelector('.rt-label');
-                // Klik di label RT buat edit teks -- jangan sampai ikut memicu ganti lagu.
-                rtLabelEl.addEventListener('click', (e) => e.stopPropagation());
-                rtLabelEl.addEventListener('input', () => {
-                    songs[index].rt = rtLabelEl.textContent;
-                    if (index === currentSongIndex) songRT.textContent = rtLabelEl.textContent;
-                });
-                rtLabelEl.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); rtLabelEl.blur(); }
-                });
-                // Tombol upload per-slot -- isi/ganti lagu KHUSUS baris RT ini,
-                // tidak nambah baris baru.
-                const slotUploadBtn = item.querySelector('.slot-upload-btn');
-                slotUploadBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    pendingUploadIndex = index;
-                    fileInput.click();
-                });
-                // Tombol hapus -- slot RT tetap (di-reset kosong), lagu tambahan
-                // di luar 15 RT (rt==="UPLOAD") langsung dibuang dari daftar.
-                const deleteBtn = item.querySelectorAll('.slot-upload-btn')[1];
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (song.src) URL.revokeObjectURL(song.src);
-                    if (song.rt === 'UPLOAD') {
+
+                if (currentMode === 'rt15') {
+                    // ===== Preset 15 Lagu RT: 15 slot tetap, per-slot upload/hapus =====
+                    const hasSong = !!song.src;
+                    item.innerHTML = `
+                        <span class="rt-label" contenteditable="true" spellcheck="false">${song.rt}</span>
+                        <span class="song-name${hasSong ? '' : ' song-empty'}">${hasSong ? song.title : 'Belum ada lagu'}</span>
+                        <button type="button" class="slot-upload-btn" title="Upload lagu untuk ${song.rt}">📤</button>
+                        <button type="button" class="slot-upload-btn" title="Hapus lagu ini">🗑️</button>
+                    `;
+                    const rtLabelEl = item.querySelector('.rt-label');
+                    // Klik di label RT buat edit teks -- jangan sampai ikut memicu ganti lagu.
+                    rtLabelEl.addEventListener('click', (e) => e.stopPropagation());
+                    rtLabelEl.addEventListener('input', () => {
+                        songs[index].rt = rtLabelEl.textContent;
+                        if (index === currentSongIndex) songRT.textContent = rtLabelEl.textContent;
+                    });
+                    rtLabelEl.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); rtLabelEl.blur(); }
+                    });
+                    // Tombol upload per-slot -- isi/ganti lagu KHUSUS baris RT ini,
+                    // tidak nambah baris baru.
+                    const slotUploadBtn = item.querySelector('.slot-upload-btn');
+                    slotUploadBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        pendingUploadIndex = index;
+                        fileInput.click();
+                    });
+                    // Tombol hapus -- slot RT tetap (di-reset kosong), lagu tambahan
+                    // di luar 15 RT (rt==="UPLOAD") langsung dibuang dari daftar.
+                    const deleteBtn = item.querySelectorAll('.slot-upload-btn')[1];
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (song.src) URL.revokeObjectURL(song.src);
+                        if (song.rt === 'UPLOAD') {
+                            songs.splice(index, 1);
+                            if (currentSongIndex >= songs.length) currentSongIndex = Math.max(0, songs.length - 1);
+                            else if (index < currentSongIndex) currentSongIndex--;
+                        } else {
+                            songs[index].title = null;
+                            songs[index].src = null;
+                            songs[index].cover = "DIRGAHAYU<br>INDONESIA";
+                        }
+                        if (index === currentSongIndex || songs[currentSongIndex] === undefined) {
+                            loadSong(Math.min(currentSongIndex, Math.max(0, songs.length - 1)));
+                        } else {
+                            renderPlaylist();
+                        }
+                    });
+                } else {
+                    // ===== Preset Playlist Biasa: daftar dinamis, tanpa label RT =====
+                    item.innerHTML = `
+                        <span class="track-number">${index + 1}.</span>
+                        <span class="song-name">${song.title}</span>
+                        <button type="button" class="slot-upload-btn" title="Hapus lagu ini">🗑️</button>
+                    `;
+                    const deleteBtn = item.querySelector('.slot-upload-btn');
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (song.src) URL.revokeObjectURL(song.src);
                         songs.splice(index, 1);
-                        if (currentSongIndex >= songs.length) currentSongIndex = Math.max(0, songs.length - 1);
+                        if (songs.length === 0) {
+                            showEmptyPlayerState();
+                            return;
+                        }
+                        if (currentSongIndex >= songs.length) currentSongIndex = songs.length - 1;
                         else if (index < currentSongIndex) currentSongIndex--;
-                    } else {
-                        songs[index].title = null;
-                        songs[index].src = null;
-                        songs[index].cover = "DIRGAHAYU<br>INDONESIA";
-                    }
-                    if (index === currentSongIndex || songs[currentSongIndex] === undefined) {
-                        loadSong(Math.min(currentSongIndex, Math.max(0, songs.length - 1)));
-                    } else {
-                        renderPlaylist();
-                    }
-                });
+                        if (index === currentSongIndex || songs[currentSongIndex] === undefined) {
+                            loadSong(Math.min(currentSongIndex, songs.length - 1));
+                        } else {
+                            renderPlaylist();
+                        }
+                    });
+                }
+
                 item.addEventListener('click', () => {
                     const wasPlaying = isPlaying;
                     loadSong(index);
@@ -681,12 +796,57 @@
             });
         }
 
+        // Tampilan pemutar saat playlist aktif kosong sama sekali
+        // (cuma bisa kejadian di preset Playlist Biasa, karena preset 15 RT
+        // selalu punya 15 slot walau isinya kosong).
+        function showEmptyPlayerState() {
+            pauseSong();
+            currentSongIndex = 0;
+            songTitle.textContent = 'Belum ada lagu';
+            songRT.textContent = '';
+            coverArt.innerHTML = 'PLAYLIST<br>KOSONG';
+            audioPlayer.removeAttribute('src');
+            audioPlayer.load();
+            progressFill.style.width = '0%';
+            currentTimeEl.textContent = '00:00';
+            durationTimeEl.textContent = '00:00';
+            renderPlaylist();
+        }
+
+        // Pindah preset: 15 Lagu RT <-> Playlist Biasa.
+        // Playback dihentikan dulu biar tidak ada lagu preset lama yang
+        // kepancing lanjut muter pas sudah pindah ke preset lain.
+        function switchMode(mode) {
+            if (mode === currentMode) return;
+            pauseSong();
+            currentMode = mode;
+            songs = (mode === 'rt15') ? songsRT15 : songsNormal;
+            pendingUploadIndex = null;
+
+            modeRtBtn.classList.toggle('active', mode === 'rt15');
+            modeNormalBtn.classList.toggle('active', mode === 'normal');
+            playlistTitleLabel.textContent = (mode === 'rt15') ? 'DAFTAR LAGU TIAP RT' : 'DAFTAR LAGU';
+            uploadBtn.textContent = (mode === 'rt15') ? '+ Tambah Lagu Lain (di luar 15 RT)' : '+ Tambah Lagu';
+
+            if (songs.length > 0) {
+                loadSong(0);
+            } else {
+                showEmptyPlayerState();
+            }
+        }
+        modeRtBtn.addEventListener('click', () => switchMode('rt15'));
+        modeNormalBtn.addEventListener('click', () => switchMode('normal'));
+
         // Load Song (Hanya memuat, TIDAK langsung play)
         function loadSong(index) {
+            if (!songs[index]) {
+                showEmptyPlayerState();
+                return;
+            }
             currentSongIndex = index;
             const song = songs[index];
             songTitle.textContent = song.src ? song.title : 'Belum ada lagu';
-            songRT.textContent = song.rt;
+            songRT.textContent = song.rt || '';
             coverArt.innerHTML = song.cover;
             if (song.src) {
                 audioPlayer.src = song.src;
@@ -1128,11 +1288,11 @@
                 } else {
                     // Tombol umum -- tambah baris baru di akhir daftar
                     songs.push({
-                        rt: "UPLOAD",
+                        rt: currentMode === 'rt15' ? "UPLOAD" : "",
                         title: songName,
                         src: songUrl,
                         fileName: file.name, // nama asli + ekstensi, dipakai saat "Unduh Asli"
-                        cover: "LAGU<br>UPLOAD"
+                        cover: currentMode === 'rt15' ? "LAGU<br>UPLOAD" : "PLAYLIST<br>LAGU"
                     });
                     renderPlaylist();
                     loadSong(songs.length - 1);
