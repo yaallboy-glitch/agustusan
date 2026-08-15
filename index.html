@@ -352,6 +352,27 @@
             text-overflow: ellipsis;
         }
 
+        .playlist-item .song-name.song-empty {
+            font-style: italic;
+            opacity: 0.55;
+        }
+
+        .slot-upload-btn {
+            background: none;
+            border: none;
+            font-size: 0.95rem;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-left: 8px;
+            opacity: 0.6;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .slot-upload-btn:hover {
+            opacity: 1;
+            transform: scale(1.15);
+        }
+
         .add-song-btn {
             display: block;
             width: 100%;
@@ -496,7 +517,7 @@
             
             <!-- Input File Disembunyikan -->
             <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus,.wma" class="visually-hidden-file">
-            <button class="add-song-btn" id="uploadBtn">+ Tambah Lagu dari Storage</button>
+            <button class="add-song-btn" id="uploadBtn">+ Tambah Lagu Lain (di luar 15 RT)</button>
         </div>
 
         <div class="footer">
@@ -508,24 +529,27 @@
     <audio id="audioPlayer"></audio>
 
     <script>
-        // Data Awal Lagu
+        // 15 slot RT -- KOSONG (belum ada lagu), tinggal diisi lewat ikon
+        // upload di masing-masing baris (upload per-RT, lihat renderPlaylist).
         const songs = [
-            { rt: "RT 01", title: "Indonesia Pusaka", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 02", title: "Bagimu Negeri", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 03", title: "Garuda Pancasila", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 04", title: "Halo-Halo Bandung", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 05", title: "Maju Tak Gentar", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 06", title: "Bangun Pemudi Pemuda", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 07", title: "Berita Kepada Kawan", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 08", title: "Dari Sabang Sampai Merauke", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 09", title: "Gugur Bunga", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 10", title: "Indonesia Jaya", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 11", title: "Ibu Pertiwi", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 12", title: "Melati Suci", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 13", title: "Nenek Moyangku Pelaut", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 14", title: "Pemuda", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 15", title: "Satu Nusa Satu Bangsa", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3", cover: "DIRGAHAYU<br>INDONESIA" }
+            { rt: "RT 01", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 02", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 03", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 04", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 05", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 06", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 07", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 08", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 09", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 10", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 11", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 12", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 13", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 14", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "RT 15", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" }
         ];
+
+        let pendingUploadIndex = null; // slot RT yang lagi nunggu file diupload (null = tombol umum)
 
         let currentSongIndex = 0;
         let isPlaying = false;
@@ -568,9 +592,11 @@
                 if (index === currentSongIndex) {
                     item.classList.add('active');
                 }
+                const hasSong = !!song.src;
                 item.innerHTML = `
                     <span class="rt-label" contenteditable="true" spellcheck="false">${song.rt}</span>
-                    <span class="song-name">${song.title}</span>
+                    <span class="song-name${hasSong ? '' : ' song-empty'}">${hasSong ? song.title : 'Belum ada lagu'}</span>
+                    <button type="button" class="slot-upload-btn" title="Upload lagu untuk ${song.rt}">📤</button>
                 `;
                 const rtLabelEl = item.querySelector('.rt-label');
                 // Klik di label RT buat edit teks -- jangan sampai ikut memicu ganti lagu.
@@ -581,6 +607,14 @@
                 });
                 rtLabelEl.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') { e.preventDefault(); rtLabelEl.blur(); }
+                });
+                // Tombol upload per-slot -- isi/ganti lagu KHUSUS baris RT ini,
+                // tidak nambah baris baru.
+                const slotUploadBtn = item.querySelector('.slot-upload-btn');
+                slotUploadBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    pendingUploadIndex = index;
+                    fileInput.click();
                 });
                 item.addEventListener('click', () => {
                     const wasPlaying = isPlaying;
@@ -595,10 +629,15 @@
         function loadSong(index) {
             currentSongIndex = index;
             const song = songs[index];
-            songTitle.textContent = song.title;
+            songTitle.textContent = song.src ? song.title : 'Belum ada lagu';
             songRT.textContent = song.rt;
             coverArt.innerHTML = song.cover;
-            audioPlayer.src = song.src;
+            if (song.src) {
+                audioPlayer.src = song.src;
+            } else {
+                audioPlayer.removeAttribute('src');
+                audioPlayer.load();
+            }
             
             pauseSong(); 
             progressFill.style.width = '0%';
@@ -609,6 +648,15 @@
         }
 
         function playSong() {
+            const song = songs[currentSongIndex];
+            if (!song.src) {
+                // Slot ini belum diisi lagu -- diam saja, jangan coba muter apa-apa.
+                isPlaying = false;
+                playPauseBtn.innerHTML = '▶️';
+                return;
+            }
+            ensureAudioGraph();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             isPlaying = true;
             playPauseBtn.innerHTML = '⏸️';
             audioPlayer.play();
@@ -761,11 +809,12 @@
                 : 'Lanjut otomatis ke lagu berikutnya: Mati';
         });
 
-        // Efek 8D Audio -- panning stereo yang berputar pelan-pelan lewat
-        // Web Audio API. Graph-nya cuma dibuat SEKALI (createMediaElementSource
-        // cuma boleh dipanggil sekali per elemen <audio>), lalu tetap
-        // tersambung terus -- saat 8D "mati", pan-nya cuma dikembalikan ke
-        // tengah (0), audio tetap kedengaran normal seperti biasa.
+        // Graph Web Audio -- dipakai untuk DUA hal sekaligus:
+        //  1) Penjernih audio yang SELALU aktif otomatis (highshelf + compressor)
+        //  2) Efek 8D (panning stereo berputar) lewat tombol 8D, opsional
+        // Graph-nya cuma dibuat SEKALI (createMediaElementSource cuma boleh
+        // dipanggil sekali per elemen <audio>) -- dipicu otomatis pas lagu
+        // pertama kali diputar (lihat playSong()).
         // CATATAN: butuh audio yang sama-origin (upload dari storage = aman)
         // atau server sumbernya izinkan CORS -- kalau tidak, browser akan
         // membisukan audio begitu masuk Web Audio API (bukan bug di sini).
@@ -777,7 +826,24 @@
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             sourceNode = audioCtx.createMediaElementSource(audioPlayer);
             pannerNode = audioCtx.createStereoPanner();
-            sourceNode.connect(pannerNode).connect(audioCtx.destination);
+
+            // Highshelf halus -- angkat sedikit frekuensi tinggi (vokal/hi-hat/
+            // detail) biar kedengaran lebih jernih, tidak berlebihan.
+            const clarityNode = audioCtx.createBiquadFilter();
+            clarityNode.type = 'highshelf';
+            clarityNode.frequency.value = 8000;
+            clarityNode.gain.value = 4;
+
+            // Compressor halus -- ratakan volume supaya bagian pelan tetap
+            // kedengaran jelas, tanpa bikin bagian keras jadi pecah/distorsi.
+            const compressorNode = audioCtx.createDynamicsCompressor();
+            compressorNode.threshold.value = -20;
+            compressorNode.knee.value = 24;
+            compressorNode.ratio.value = 3;
+            compressorNode.attack.value = 0.02;
+            compressorNode.release.value = 0.25;
+
+            sourceNode.connect(pannerNode).connect(clarityNode).connect(compressorNode).connect(audioCtx.destination);
         }
 
         function run8DPanLoop() {
@@ -802,26 +868,38 @@
             }
         });
 
-        // Fitur Upload dari Storage
-        uploadBtn.addEventListener('click', () => fileInput.click());
+        // Tombol umum -- tambah lagu BARU di luar 15 slot RT (bukan isi slot RT)
+        uploadBtn.addEventListener('click', () => { pendingUploadIndex = null; fileInput.click(); });
         
         fileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
                 const songUrl = URL.createObjectURL(file);
                 const songName = file.name.replace(/\.[^/.]+$/, ""); // Hapus ekstensi .mp3 dll
-                
-                // Tambahkan ke array songs
-                songs.push({
-                    rt: "UPLOAD",
-                    title: songName,
-                    src: songUrl,
-                    cover: "LAGU<br>UPLOAD"
-                });
-                
-                renderPlaylist();
-                // Opsional: Langsung load lagu yang baru diupload
-                loadSong(songs.length - 1);
+
+                if (pendingUploadIndex !== null) {
+                    // Isi/ganti lagu KHUSUS slot RT yang tombol upload-nya diklik
+                    const idx = pendingUploadIndex;
+                    songs[idx].title = songName;
+                    songs[idx].src = songUrl;
+                    songs[idx].cover = "LAGU<br>UPLOAD";
+                    pendingUploadIndex = null;
+                    if (idx === currentSongIndex) {
+                        loadSong(idx); // refresh tampilan pemutar kalau slot ini lagi aktif
+                    } else {
+                        renderPlaylist();
+                    }
+                } else {
+                    // Tombol umum -- tambah baris baru di akhir daftar
+                    songs.push({
+                        rt: "UPLOAD",
+                        title: songName,
+                        src: songUrl,
+                        cover: "LAGU<br>UPLOAD"
+                    });
+                    renderPlaylist();
+                    loadSong(songs.length - 1);
+                }
                 
                 // Reset input agar bisa upload file dengan nama yang sama lagi
                 fileInput.value = '';
