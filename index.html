@@ -778,6 +778,22 @@
         let pendingUploadIndex = null; // slot RT yang lagi nunggu file diupload (null = tombol umum)
 
         let currentSongIndex = 0;
+        // Preset ('rt15' atau 'normal') tempat lagu yang SEDANG DIPUTAR
+        // berasal -- BISA BEDA dari currentMode (preset yang lagi
+        // ditampilkan/dibrowse di layar). Pemisahan ini yang bikin pindah
+        // dari Playlist Biasa <-> RT tidak lagi menghentikan lagu yang
+        // sedang berjalan (lihat switchMode()).
+        let playingMode = null;
+        function getSongsArrayForMode(mode) {
+            return mode === 'rt15' ? songsRT15 : songsNormal;
+        }
+        // Ambil objek lagu yang BENAR-BENAR sedang termuat di pemutar
+        // (bisa dari preset yang berbeda dari yang lagi ditampilkan).
+        function getPlayingSong() {
+            if (playingMode === null) return null;
+            const list = getSongsArrayForMode(playingMode);
+            return (list && list[currentSongIndex]) || null;
+        }
         // Lagu yang diklik di daftar SAAT lagu lain masih berjalan --
         // cuma "ditandai" dulu, belum benar-benar dimuat/diputar. Null
         // berarti tidak ada lagu yang lagi "menunggu" (lagu terpilih =
@@ -984,10 +1000,15 @@
             songs.forEach((song, index) => {
                 const item = document.createElement('div');
                 item.classList.add('playlist-item');
-                if (index === currentSongIndex) {
+                // "Aktif" (lagu yang BENAR-BENAR sedang diputar) cuma valid
+                // kalau preset yang lagi ditampilkan (currentMode) SAMA
+                // dengan preset yang lagi diputar (playingMode) -- soalnya
+                // sekarang keduanya bisa beda (lihat switchMode()).
+                const isActiveRow = (currentMode === playingMode && index === currentSongIndex);
+                if (isActiveRow) {
                     item.classList.add('active');
                 }
-                if (pendingSelectIndex !== null && index === pendingSelectIndex && index !== currentSongIndex) {
+                if (pendingSelectIndex !== null && index === pendingSelectIndex && !isActiveRow) {
                     item.classList.add('pending-select');
                 }
 
@@ -1009,7 +1030,7 @@
                     rtLabelEl.addEventListener('click', (e) => e.stopPropagation());
                     rtLabelEl.addEventListener('input', () => {
                         songs[index].rt = rtLabelEl.textContent;
-                        if (index === currentSongIndex) songRT.textContent = rtLabelEl.textContent;
+                        if (currentMode === playingMode && index === currentSongIndex) songRT.textContent = rtLabelEl.textContent;
                         persistSongDebounced(songs[index]);
                     });
                     rtLabelEl.addEventListener('keydown', (e) => {
@@ -1025,15 +1046,21 @@
                     });
                     // Tombol hapus -- slot RT tetap (di-reset kosong), lagu tambahan
                     // di luar 15 RT (rt==="UPLOAD") langsung dibuang dari daftar.
+                    // Kalau slot yang dihapus BUKAN yang sedang diputar (atau
+                    // preset yang lagi diputar beda dari yang lagi dibrowse),
+                    // lagu yang sedang berjalan TIDAK boleh terganggu sama sekali.
                     const deleteBtn = item.querySelectorAll('.slot-upload-btn')[1];
                     deleteBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         if (song.src) URL.revokeObjectURL(song.src);
                         dbDeleteSong(song.dbId);
+                        const affectsPlaying = (currentMode === playingMode);
                         if (song.rt === 'UPLOAD') {
                             songs.splice(index, 1);
-                            if (currentSongIndex >= songs.length) currentSongIndex = Math.max(0, songs.length - 1);
-                            else if (index < currentSongIndex) currentSongIndex--;
+                            if (affectsPlaying) {
+                                if (currentSongIndex >= songs.length) currentSongIndex = Math.max(0, songs.length - 1);
+                                else if (index < currentSongIndex) currentSongIndex--;
+                            }
                         } else {
                             songs[index].title = null;
                             songs[index].src = null;
@@ -1044,8 +1071,8 @@
                             songs[index].isYoutube = false;
                             songs[index].youtubeId = null;
                         }
-                        if (index === currentSongIndex || songs[currentSongIndex] === undefined) {
-                            loadSong(Math.min(currentSongIndex, Math.max(0, songs.length - 1)));
+                        if (affectsPlaying && (index === currentSongIndex || songs[currentSongIndex] === undefined)) {
+                            loadSong(Math.min(currentSongIndex, Math.max(0, songs.length - 1)), currentMode);
                         } else {
                             renderPlaylist();
                         }
@@ -1064,14 +1091,20 @@
                         if (song.src) URL.revokeObjectURL(song.src);
                         dbDeleteSong(song.dbId);
                         songs.splice(index, 1);
+                        const affectsPlaying = (currentMode === playingMode);
                         if (songs.length === 0) {
-                            showEmptyPlayerState();
+                            if (affectsPlaying) showEmptyPlayerState();
+                            else renderPlaylist();
+                            return;
+                        }
+                        if (!affectsPlaying) {
+                            renderPlaylist();
                             return;
                         }
                         if (currentSongIndex >= songs.length) currentSongIndex = songs.length - 1;
                         else if (index < currentSongIndex) currentSongIndex--;
                         if (index === currentSongIndex || songs[currentSongIndex] === undefined) {
-                            loadSong(Math.min(currentSongIndex, songs.length - 1));
+                            loadSong(Math.min(currentSongIndex, songs.length - 1), currentMode);
                         } else {
                             renderPlaylist();
                         }
@@ -1092,7 +1125,7 @@
                     // lagu ini sebagai "terpilih" (highlight putus-putus).
                     // Lagu yang sedang main tetap lanjut sampai user
                     // benar-benar menekan tombol ▶️.
-                    if (index === currentSongIndex) {
+                    if (currentMode === playingMode && index === currentSongIndex) {
                         pendingSelectIndex = null;
                     } else {
                         pendingSelectIndex = index;
@@ -1182,7 +1215,8 @@
 
         // YT.PlayerState: -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
         function onYtStateChange(event) {
-            if (songs[currentSongIndex] && !songs[currentSongIndex].isYoutube) return; // basi, sudah pindah ke lagu lokal
+            const playing = getPlayingSong();
+            if (playing && !playing.isYoutube) return; // basi, sudah pindah ke lagu lokal
             if (event.data === YT.PlayerState.PLAYING) {
                 isPlaying = true;
                 playPauseBtn.innerHTML = '⏸️';
@@ -1294,14 +1328,23 @@
             };
             songs.push(newSong);
             persistYoutubeSong(newSong);
-            renderPlaylist();
-            loadSong(songs.length - 1);
+            const newIndex = songs.length - 1;
+            // Sama seperti klik lagu di daftar -- kalau ada lagu yang lagi
+            // berjalan, JANGAN dihentikan. Lagu baru ini cuma "ditandai",
+            // baru benar-benar dimuat & main pas tombol ▶️ ditekan.
+            if (!isPlaying) {
+                loadSong(newIndex);
+            } else {
+                pendingSelectIndex = newIndex;
+                renderPlaylist();
+            }
         });
 
         function showEmptyPlayerState() {
             pauseSong();
             if (ytPlayer) { try { ytPlayer.stopVideo(); } catch (e) {} }
             ytLoadedForIndex = null;
+            playingMode = null;
             youtubeCoverBox.style.display = 'none';
             coverArt.style.display = 'flex';
             currentSongIndex = 0;
@@ -1317,14 +1360,17 @@
         }
 
         // Pindah preset: 15 Lagu RT <-> Playlist Biasa.
-        // Playback dihentikan dulu biar tidak ada lagu preset lama yang
-        // kepancing lanjut muter pas sudah pindah ke preset lain.
+        // SENGAJA TIDAK menghentikan lagu yang sedang berjalan -- lagu yang
+        // lagi diputar (kalau ada) tetap lanjut mengalun di latar belakang
+        // walau layar berpindah menampilkan daftar preset yang lain.
+        // Cukup tombol ▶️/pilih lagu baru yang boleh menggantinya (lihat
+        // getPlayingSong()/playingMode).
         function switchMode(mode) {
             if (mode === currentMode) return;
-            pauseSong();
             currentMode = mode;
             songs = (mode === 'rt15') ? songsRT15 : songsNormal;
             pendingUploadIndex = null;
+            pendingSelectIndex = null; // reset -- "menunggu" di preset lama sudah tidak relevan
             dbSetMeta('currentMode', mode);
 
             modeRtBtn.classList.toggle('active', mode === 'rt15');
@@ -1332,27 +1378,39 @@
             playlistTitleLabel.textContent = (mode === 'rt15') ? 'DAFTAR LAGU TIAP RT' : 'DAFTAR LAGU';
             uploadBtn.textContent = (mode === 'rt15') ? '+ Tambah Lagu Lain (di luar 15 RT)' : '+ Tambah Lagu';
 
-            if (songs.length > 0) {
-                loadSong(0);
+            // Kalau belum ada lagu apa pun yang pernah diputar sama sekali
+            // (baru buka aplikasi), baru munculkan lagu pertama preset ini
+            // sebagai tampilan awal. Kalau sudah ada yang sedang berjalan,
+            // biarkan -- jangan diganggu.
+            if (playingMode === null) {
+                if (songs.length > 0) loadSong(0);
+                else showEmptyPlayerState();
             } else {
-                showEmptyPlayerState();
+                renderPlaylist();
             }
         }
         modeRtBtn.addEventListener('click', () => switchMode('rt15'));
         modeNormalBtn.addEventListener('click', () => switchMode('normal'));
 
         // Load Song (Hanya memuat, TIDAK langsung play)
-        function loadSong(index) {
+        // `mode` opsional -- default ke preset yang lagi ditampilkan
+        // (currentMode). WAJIB diisi eksplisit oleh next/prev/repeat-lagu
+        // supaya tetap melanjutkan preset yang SEDANG DIPUTAR walau
+        // layar sedang menampilkan preset lain (lihat playingMode).
+        function loadSong(index, mode) {
             // Apa pun jalur yang memanggil loadSong (klik daftar, tombol
             // play, next/prev, dsb), begitu sebuah lagu benar-benar dimuat,
             // tandai "menunggu" yang lama jadi tidak berlaku lagi.
             pendingSelectIndex = null;
-            if (!songs[index]) {
-                showEmptyPlayerState();
+            mode = mode || currentMode;
+            const list = getSongsArrayForMode(mode);
+            if (!list || !list[index]) {
+                if (mode === currentMode) showEmptyPlayerState();
                 return;
             }
+            playingMode = mode;
             currentSongIndex = index;
-            const song = songs[index];
+            const song = list[index];
             const hasSong = !!song.src || !!song.isYoutube;
             songTitle.textContent = hasSong ? song.title : 'Belum ada lagu';
             songRT.textContent = song.rt || '';
@@ -1369,7 +1427,8 @@
                 getYoutubePlayer().then((player) => {
                     // Kalau selama nunggu player siap ternyata user sudah
                     // pindah ke lagu lain, jangan cue video yang sudah basi.
-                    if (!songs[currentSongIndex] || !songs[currentSongIndex].isYoutube || songs[currentSongIndex].youtubeId !== song.youtubeId) return;
+                    const stillCurrent = getPlayingSong();
+                    if (!stillCurrent || !stillCurrent.isYoutube || stillCurrent.youtubeId !== song.youtubeId) return;
                     player.cueVideoById(song.youtubeId);
                 });
             } else {
@@ -1427,7 +1486,12 @@
         }
 
         function playSong() {
-            const song = songs[currentSongIndex];
+            const song = getPlayingSong();
+            if (!song) {
+                isPlaying = false;
+                playPauseBtn.innerHTML = '▶️';
+                return;
+            }
             if (song.isYoutube) {
                 playYoutubeSong(song);
                 return;
@@ -1485,7 +1549,7 @@
             playPauseBtn.innerHTML = '⏸️';
             getYoutubePlayer().then((player) => {
                 // Basi -- selama nunggu player siap, user sudah pindah lagu lain.
-                if (songs[currentSongIndex] !== song) return;
+                if (getPlayingSong() !== song) return;
                 if (ytLoadedForIndex === currentSongIndex) {
                     player.playVideo();
                 } else {
@@ -1498,7 +1562,7 @@
         function pauseSong() {
             isPlaying = false;
             playPauseBtn.innerHTML = '▶️';
-            const song = songs[currentSongIndex];
+            const song = getPlayingSong();
             if (song && song.isYoutube) {
                 if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch (e) {} }
                 stopYtProgressPolling();
@@ -1537,7 +1601,7 @@
         // tombol ▶️ sendiri kalau mau lanjut dari awal.
         function stopSong() {
             pauseSong();
-            const song = songs[currentSongIndex];
+            const song = getPlayingSong();
             if (song && song.isYoutube) {
                 if (ytPlayer) { try { ytPlayer.seekTo(0, true); } catch (e) {} }
             } else if (audioPlayer.src) {
@@ -1549,35 +1613,43 @@
         stopBtn.addEventListener('click', stopSong);
 
         // Ambil index acak yang beda dari index sekarang (kalau lagu > 1)
-        function getRandomIndex(exclude) {
-            if (songs.length <= 1) return 0;
+        function getRandomIndex(exclude, length) {
+            if (length <= 1) return 0;
             let idx;
-            do { idx = Math.floor(Math.random() * songs.length); } while (idx === exclude);
+            do { idx = Math.floor(Math.random() * length); } while (idx === exclude);
             return idx;
         }
 
         function prevSong() {
             const wasPlaying = isPlaying;
-            currentSongIndex = isShuffle
-                ? getRandomIndex(currentSongIndex)
-                : (currentSongIndex - 1 + songs.length) % songs.length;
-            loadSong(currentSongIndex);
+            const mode = playingMode || currentMode;
+            const list = getSongsArrayForMode(mode);
+            if (!list || list.length === 0) return;
+            const newIndex = isShuffle
+                ? getRandomIndex(currentSongIndex, list.length)
+                : (currentSongIndex - 1 + list.length) % list.length;
+            loadSong(newIndex, mode);
             if (wasPlaying) playSong();
         }
 
         function nextSong() {
             const wasPlaying = isPlaying;
-            currentSongIndex = isShuffle
-                ? getRandomIndex(currentSongIndex)
-                : (currentSongIndex + 1) % songs.length;
-            loadSong(currentSongIndex);
+            const mode = playingMode || currentMode;
+            const list = getSongsArrayForMode(mode);
+            if (!list || list.length === 0) return;
+            const newIndex = isShuffle
+                ? getRandomIndex(currentSongIndex, list.length)
+                : (currentSongIndex + 1) % list.length;
+            loadSong(newIndex, mode);
             if (wasPlaying) playSong();
         }
 
         // Dipanggil saat lagu selesai sendiri (bukan diklik manual) --
         // di sinilah mode "Ulang" (repeat) dan "Autoplay" benar-benar berlaku.
         function handleSongEnd() {
-            const song = songs[currentSongIndex];
+            const song = getPlayingSong();
+            const mode = playingMode || currentMode;
+            const list = getSongsArrayForMode(mode);
             const resetTime = () => {
                 if (song && song.isYoutube) {
                     if (ytPlayer) { try { ytPlayer.seekTo(0, true); } catch (e) {} }
@@ -1600,7 +1672,7 @@
             }
             // Repeat mati & bukan shuffle & sudah di lagu terakhir -> berhenti,
             // jangan lompat balik ke lagu pertama sendiri.
-            if (repeatMode === 'off' && !isShuffle && currentSongIndex === songs.length - 1) {
+            if (repeatMode === 'off' && !isShuffle && list && currentSongIndex === list.length - 1) {
                 pauseSong();
                 resetTime();
                 progressFill.style.width = '0%';
@@ -1623,7 +1695,7 @@
         function setProgress(e) {
             const width = this.clientWidth;
             const clickX = e.offsetX;
-            const song = songs[currentSongIndex];
+            const song = getPlayingSong();
             if (song && song.isYoutube) {
                 if (!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
                 const duration = ytPlayer.getDuration();
@@ -1646,10 +1718,13 @@
             // Ada lagu lain yang sudah "ditandai" (diklik di daftar) sementara
             // lagu sekarang masih berjalan -- baru SEKARANG kita benar-benar
             // pindah: muat lagu yang ditandai lalu langsung mainkan.
-            if (pendingSelectIndex !== null && pendingSelectIndex !== currentSongIndex) {
+            // (pendingSelectIndex selalu mengacu ke preset yang lagi
+            // ditampilkan sekarang -- lihat switchMode() yang mereset
+            // pendingSelectIndex begitu preset berganti.)
+            if (pendingSelectIndex !== null && !(currentMode === playingMode && pendingSelectIndex === currentSongIndex)) {
                 const targetIndex = pendingSelectIndex;
                 pendingSelectIndex = null;
-                loadSong(targetIndex);
+                loadSong(targetIndex, currentMode);
                 playSong();
                 return;
             }
@@ -1883,7 +1958,7 @@
         // ke memori, jadi tidak ada risiko gagal karena file panjang/besar
         // (misalnya lagu DJ/mixtape berdurasi puluhan menit - jam).
         function downloadOriginalFile(songOverride) {
-            const song = songOverride || songs[currentSongIndex];
+            const song = songOverride || getPlayingSong();
             if (song && song.isYoutube) {
                 alert('Lagu YouTube tidak bisa diunduh dari sini -- audionya datang langsung dari server YouTube, bukan file yang kita simpan.');
                 return;
@@ -1902,7 +1977,7 @@
         downloadOriginalBtn.addEventListener('click', () => downloadOriginalFile());
 
         async function renderAndDownloadWav(songOverride) {
-            const song = songOverride || songs[currentSongIndex];
+            const song = songOverride || getPlayingSong();
             if (song && song.isYoutube) {
                 alert('Lagu YouTube tidak bisa dirender/diunduh dari sini -- audionya datang langsung dari server YouTube, bukan file yang kita simpan.');
                 return;
@@ -2062,8 +2137,8 @@
                     songs[idx].youtubeId = null;
                     persistSong(songs[idx]);
                     pendingUploadIndex = null;
-                    if (idx === currentSongIndex) {
-                        loadSong(idx); // refresh tampilan pemutar kalau slot ini lagi aktif
+                    if (currentMode === playingMode && idx === currentSongIndex) {
+                        loadSong(idx, currentMode); // refresh tampilan pemutar kalau slot ini lagi aktif
                     } else {
                         renderPlaylist();
                     }
@@ -2084,8 +2159,15 @@
                     };
                     songs.push(newSong);
                     persistSong(newSong);
-                    renderPlaylist();
-                    loadSong(songs.length - 1);
+                    const newIndex = songs.length - 1;
+                    // Sama seperti yang lain -- jangan hentikan lagu yang
+                    // lagi berjalan cuma karena nambah lagu baru.
+                    if (!isPlaying) {
+                        loadSong(newIndex);
+                    } else {
+                        pendingSelectIndex = newIndex;
+                        renderPlaylist();
+                    }
                 }
 
                 // Reset input agar bisa upload file dengan nama yang sama lagi
@@ -2163,6 +2245,47 @@
                 showEmptyPlayerState();
             }
         }
+
+        // =========================================================
+        // LAYAR TIDAK MATI SELAMA APLIKASI DIBUKA (Wake Lock API)
+        //
+        // Dipakai supaya HP tidak masuk mode tidur/kunci layar otomatis
+        // pas aplikasi ini lagi dibuka aktif (mis. dipasang di tablet/HP
+        // yang muter lagu di acara). Ini API resmi browser, BUKAN trik --
+        // didukung Chrome/Edge/Safari versi baru. Kalau browsernya tidak
+        // mendukung atau izinnya ditolak sistem, aplikasi tetap jalan
+        // normal seperti biasa, cuma efek "layar tidak mati"-nya saja
+        // yang tidak aktif -- tidak ada apa pun yang rusak/terganggu.
+        // =========================================================
+        let wakeLock = null;
+
+        async function requestWakeLock() {
+            if (!('wakeLock' in navigator)) return;
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                wakeLock.addEventListener('release', () => {
+                    wakeLock = null;
+                });
+            } catch (err) {
+                // Wajar terjadi kalau browser lagi tidak izinkan (mis. baterai
+                // hemat daya) -- diamkan saja, jangan ganggu pengguna dengan
+                // alert/error, cukup dicatat di console buat yang mau cek.
+                console.warn('Wake Lock tidak bisa diaktifkan:', err && err.message);
+            }
+        }
+
+        requestWakeLock();
+
+        // Wake lock OTOMATIS lepas sendiri oleh browser kalau tab/aplikasi
+        // disembunyikan (pindah ke aplikasi lain, layar dikunci manual,
+        // dsb) -- itu memang perilaku standar API-nya, bukan sesuatu yang
+        // bisa/boleh kita lawan. Begitu aplikasi ini aktif dilihat lagi,
+        // minta ulang wake lock-nya supaya layar kembali tidak mati sendiri.
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                requestWakeLock();
+            }
+        });
 
         // Initial Load -- coba pulihkan dari penyimpanan permanen dulu;
         // kalau gagal/kosong, tampilkan 15 slot RT kosong seperti biasa.
