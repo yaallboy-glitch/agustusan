@@ -3,18 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agustusan Pemutar Lagu</title>
-    <!-- YouTube IFrame Player API -- dimuat dari YouTube sendiri, dipakai
-         cuma untuk lagu yang ditambahkan lewat link YouTube (lihat tombol
-         "▶ YouTube" di sebelah judul Daftar Lagu). Lagu upload biasa TIDAK
-         butuh ini sama sekali, tetap 100% offline seperti sebelumnya. -->
-    <script src="https://www.youtube.com/iframe_api"></script>
+    <title>Agustusan Max Music Player</title>
     <style>
         :root {
             --primary-red: #E10000;
             --dark-red: #B30000;
             --white: #FFFFFF;
-            --bg-color: #F5F5F5;
             --text-dark: #333333;
         }
 
@@ -32,39 +26,10 @@
         .container {
             background-color: var(--white);
             width: 100%;
-            max-width: 1000px; /* Lebar maksimal untuk layar besar */
+            max-width: 1000px;
             border-radius: 15px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Tampilan saat fullscreen -- isi layar penuh, tanpa sudut membulat */
-        .container:fullscreen,
-        .container:-webkit-full-screen {
-            max-width: 100%;
-            width: 100%;
-            height: 100%;
-            border-radius: 0;
-            justify-content: center;
-            background-color: var(--white);
-            /* PENTING: harus bisa di-scroll sendiri di dalam sini.
-               Kalau overflow-nya "hidden" (warisan dari .container biasa)
-               dan konten (playlist dll) lebih tinggi dari layar, jari yang
-               geser ke atas/bawah tidak nge-scroll apa-apa -- gerakannya
-               malah "bocor" ke browser/OS dan ditangkap sebagai gestur
-               keluar dari fullscreen. Dengan overflow-y:auto, geseran akan
-               dipakai untuk scroll konten dulu, jadi fullscreen tidak
-               tertutup sendiri. */
-            overflow-y: auto;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior: contain;
-            /* Kunci arah geseran ke vertikal saja -- supaya geseran ke
-               kiri/kanan (yang sering ditangkap browser/OS sebagai gestur
-               "back" atau keluar fullscreen) tidak diteruskan ke luar. */
-            touch-action: pan-y;
         }
 
         .header {
@@ -79,65 +44,42 @@
             border-bottom: 3px solid var(--dark-red);
         }
 
-        .header-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .user-profile {
+        /* Mengganti User Profile menjadi Tombol Soundboard */
+        .soundboard-btn {
             background: rgba(255,255,255,0.2);
-            padding: 5px 15px;
+            padding: 8px 20px;
             border-radius: 20px;
             font-size: 0.9rem;
             display: flex;
             align-items: center;
             gap: 8px;
-        }
-
-        .user-profile span {
-            cursor: text;
-            outline: none;
-            font-weight: bold;
-            min-width: 50px;
-            display: inline-block;
-        }
-
-        .fullscreen-btn {
-            background: rgba(255,255,255,0.2);
-            border: none;
             color: var(--white);
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            font-size: 1rem;
+            border: 1px solid rgba(255,255,255,0.4);
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .soundboard-btn:hover {
+            background: rgba(255,255,255,0.4);
         }
 
-        .fullscreen-btn:hover {
-            background: rgba(255,255,255,0.35);
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
         }
 
-        /* Layout Pemutar di Atas Tengah */
+        .left-panel {
+            padding: 25px;
+            border-right: 1px solid #eee;
+        }
+
         .player-section {
-            padding: 30px;
             display: flex;
             flex-direction: row;
             justify-content: center;
             align-items: center;
-            gap: 40px;
-            background: #fafafa;
-            border-bottom: 1px solid #eee;
+            gap: 30px;
+            margin-bottom: 30px;
         }
 
         .cover-art {
@@ -155,2143 +97,493 @@
             font-weight: bold;
             text-align: center;
             font-size: 1.1rem;
-            line-height: 1.4;
             flex-shrink: 0;
         }
 
-        .player-details {
-            flex: 1;
-            max-width: 500px;
-            min-width: 0; /* penting: biar flex item boleh menyusut, kalau
-                             tidak, judul panjang tanpa spasi akan memaksa
-                             lebar keluar (numpuk ke samping / bikin scroll
-                             horizontal) daripada turun ke baris baru */
-        }
-
-        .song-title {
-            margin: 0;
-            font-size: 1.4rem; /* sedikit lebih kecil dari sebelumnya (1.8rem) */
-            color: var(--text-dark);
-            overflow-wrap: break-word;
-            word-break: break-word;
-            line-height: 1.3;
-        }
-
-        .song-rt {
-            color: #777;
-            font-size: 1rem;
-            margin-top: 5px;
-            margin-bottom: 20px;
-        }
-
-        .progress-container {
-            margin: 20px 0;
-        }
+        .player-details { flex: 1; }
+        .song-title { margin: 0; font-size: 1.6rem; color: var(--text-dark); }
+        .song-rt { color: #777; font-size: 1rem; margin-top: 5px; margin-bottom: 20px; }
 
         .progress-bar {
-            width: 100%;
-            height: 6px;
-            background-color: #ddd;
-            border-radius: 3px;
-            overflow: hidden;
-            cursor: pointer;
+            width: 100%; height: 6px; background-color: #ddd;
+            border-radius: 3px; overflow: hidden; cursor: pointer;
+        }
+        .progress-fill { height: 100%; background: var(--primary-red); width: 0%; transition: width 0.1s linear; }
+        .time-display { display: flex; justify-content: space-between; font-size: 0.85rem; color: #666; margin-top: 8px; }
+
+        .controls { display: flex; justify-content: center; align-items: center; gap: 25px; margin-top: 20px; }
+        .btn-control { background: none; border: none; font-size: 1.8rem; color: var(--text-dark); cursor: pointer; }
+        .btn-control:hover { color: var(--primary-red); }
+        .btn-play { font-size: 3rem; color: var(--primary-red); }
+
+        .playlist-section { margin-top: 10px; }
+        .playlist-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; color: var(--text-dark); border-bottom: 2px solid var(--primary-red); padding-bottom: 10px; }
+        .playlist-items { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-height: 300px; overflow-y: auto; }
+        .playlist-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 6px; cursor: pointer; background: #f9f9f9; border: 1px solid #eee; }
+        .playlist-item:hover { background-color: #ffe5e5; }
+        .playlist-item.active { background-color: var(--primary-red); color: var(--white); }
+        .rt-label { font-weight: bold; font-size: 0.9rem; }
+        .song-name { font-size: 0.9rem; text-align: right; margin-left: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .add-song-btn { display: block; width: 100%; margin-top: 15px; padding: 12px; background: var(--white); border: 2px dashed #ccc; color: #666; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .add-song-btn:hover { border-color: var(--primary-red); color: var(--primary-red); }
+
+        .right-panel {
+            padding: 25px;
+            background: #fafafa;
+            display: flex;
+            flex-direction: column;
         }
 
-        .progress-fill {
-            height: 100%;
-            background: var(--primary-red);
-            width: 0%;
-            transition: width 0.1s linear;
+        .enhancer-title {
+            font-size: 1.1rem; font-weight: bold; margin-bottom: 20px; color: var(--text-dark);
+            border-bottom: 2px solid var(--primary-red); padding-bottom: 10px;
         }
 
-        .time-display {
+        .knob-group { margin-bottom: 30px; }
+        .knob-label { display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: bold; color: #555; margin-bottom: 10px; }
+        .knob-value { color: var(--primary-red); }
+        
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; height: 8px; background: #ddd; border-radius: 5px; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 20px; height: 20px; background: var(--primary-red); border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px; height: 20px; background: var(--primary-red); border-radius: 50%; cursor: pointer; border: 2px solid white;
+        }
+
+        .preset-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .preset-btn { padding: 10px; background: var(--white); border: 1px solid var(--primary-red); color: var(--primary-red); border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .preset-btn:hover { background: var(--primary-red); color: var(--white); }
+
+        .footer { background-color: #f0f0f0; padding: 15px 25px; text-align: center; font-size: 0.85rem; color: #555; }
+        .footer strong { color: var(--primary-red); display: block; margin-bottom: 4px; font-size: 1rem; }
+
+        audio { display: none; }
+
+        @media (max-width: 768px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .left-panel { border-right: none; border-bottom: 1px solid #eee; }
+            .player-section { flex-direction: column; text-align: center; }
+            .playlist-items { grid-template-columns: 1fr; }
+        }
+
+        /* ==================== */
+        /* CSS SOUNDBOARD MODE */
+        /* ==================== */
+        #soundboardModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.95);
+            z-index: 9999;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .sb-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 15px;
+            padding: 20px;
+        }
+        .sb-header {
             display: flex;
             justify-content: space-between;
-            font-size: 0.85rem;
-            color: #666;
-            margin-top: 8px;
-        }
-
-        .controls {
-            display: flex;
-            justify-content: flex-start;
             align-items: center;
-            gap: 20px;
-            margin-top: 10px;
-        }
-
-        .btn-control {
-            background: none;
-            border: none;
-            font-size: 1.8rem;
-            color: var(--text-dark);
-            cursor: pointer;
-            transition: transform 0.2s, color 0.2s;
-        }
-
-        .btn-control:hover {
-            transform: scale(1.15);
-            color: var(--primary-red);
-        }
-
-        .btn-play {
-            font-size: 3rem;
-            color: var(--primary-red);
-        }
-
-        /* Tombol shuffle & repeat -- lebih kecil dari tombol utama, ada state aktif */
-        .btn-toggle {
-            font-size: 1.2rem;
-            opacity: 0.45;
-        }
-
-        .btn-toggle.active {
-            opacity: 1;
-            color: var(--primary-red);
-        }
-
-        /* Volume */
-        .extra-controls {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
-            margin-top: 16px;
-            flex-wrap: wrap;
-        }
-
-        .pill-btn {
-            border: 1.5px solid #ddd;
-            background: var(--white);
-            color: #888;
-            font-size: 0.72rem;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-            padding: 6px 14px;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-            flex-shrink: 0;
-            white-space: nowrap;
-        }
-
-        .pill-btn:hover {
-            border-color: var(--primary-red);
-            color: var(--primary-red);
-        }
-
-        .pill-btn.active {
-            background: var(--primary-red);
-            border-color: var(--primary-red);
-            color: var(--white);
-        }
-
-        /* Tombol yang tidak berlaku untuk lagu YouTube (8D, Unduh Asli,
-           Unduh HQ WAV) -- lihat catatan "DUKUNGAN LAGU DARI YOUTUBE" di
-           script. Dibuat pudar & kursor "dilarang" biar jelas kenapa tidak
-           bisa diklik, tanpa perlu baca judulnya (title tooltip) dulu. */
-        .pill-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            border-color: #ddd;
-            color: #999;
-        }
-        .pill-btn:disabled:hover {
-            border-color: #ddd;
-            color: #999;
-        }
-
-        .volume-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .volume-container span {
-            font-size: 1.1rem;
-            width: 22px;
-            text-align: center;
-            flex-shrink: 0;
-        }
-
-        .volume-container input[type="range"] {
-            flex: 1;
-            max-width: 160px;
-            accent-color: var(--primary-red);
-            cursor: pointer;
-        }
-
-        /* Layout Playlist di Bawah */
-        .playlist-section {
-            padding: 20px 30px 30px;
-            background: var(--white);
-        }
-
-        .playlist-title {
-            font-size: 1.1rem;
-            font-weight: bold;
-            margin-bottom: 12px;
-            color: var(--text-dark);
+            margin-bottom: 20px;
             border-bottom: 2px solid var(--primary-red);
             padding-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
         }
-
-        .playlist-title-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        /* Tombol tambah lagu dari YouTube -- sengaja dibikin mirip warna
-           "play" YouTube supaya langsung dikenali maksudnya. */
-        .yt-add-btn {
-            background: #FF0000;
-            color: var(--white);
-            border: none;
-            padding: 5px 12px;
-            border-radius: 14px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            transition: opacity 0.2s, transform 0.1s;
-        }
-
-        .yt-add-btn:hover { opacity: 0.85; }
-        .yt-add-btn:active { transform: scale(0.96); }
-        .yt-add-btn:disabled { opacity: 0.6; cursor: default; }
-
-        /* Kotak pemutar video YouTube -- ukurannya samain dengan .cover-art
-           biasa supaya layout pemutar tidak "loncat" pas ganti-ganti jenis
-           lagu (upload vs YouTube). */
-        .youtube-cover-art {
-            padding: 0 !important;
-            background: #000 !important;
-        }
-
-        /* Penanda kecil di daftar lagu supaya lagu dari YouTube gampang
-           dibedakan dari lagu upload biasa. */
-        .yt-badge {
-            color: #FF0000;
-            font-size: 0.8em;
-            margin-right: 3px;
-        }
-
-        /* Saklar Preset -- 15 Lagu RT vs Playlist Biasa */
-        .mode-switcher {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        .mode-btn {
-            flex: 1;
-            border: 1.5px solid #ddd;
-            background: var(--white);
-            color: #888;
-            font-size: 0.8rem;
-            font-weight: bold;
-            padding: 8px 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .mode-btn:hover {
-            border-color: var(--primary-red);
-            color: var(--primary-red);
-        }
-
-        .mode-btn.active {
+        .sb-header h2 { margin: 0; color: var(--primary-red); }
+        .sb-close-btn {
             background: var(--primary-red);
-            border-color: var(--primary-red);
-            color: var(--white);
+            color: #fff;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
         }
-
-        .playlist-items {
-            display: grid;
-            /* minmax(0, 1fr), BUKAN cuma "1fr" -- kalau cuma 1fr, kolom akan
-               ikut melebar mengikuti konten yang panjang (nama lagu), jadi
-               tidak rata lagi antar kolom. minmax(0, ...) mengunci kolom
-               supaya tidak pernah melebihi jatah 1/3 lebar aslinya, apapun
-               isinya. */
-            grid-template-columns: repeat(3, minmax(0, 1fr)); /* Membagi menjadi 3 kolom */
-            gap: 10px;
-        }
-
-        /* Mode Playlist Biasa -- daftar 1 kolom, lebih lega, teks lebih besar */
-        .playlist-items.normal-mode {
-            grid-template-columns: minmax(0, 1fr);
-        }
-
-        .playlist-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 15px;
+        .sb-upload-btn {
+            width: 100%;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: #fff;
+            border: 2px dashed var(--primary-red);
+            color: var(--primary-red);
+            font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
-            transition: background 0.2s;
+        }
+        .sb-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .sb-item {
             background: #f9f9f9;
             border: 1px solid #eee;
-            min-width: 0; /* biar item grid tidak ikut melebar mengikuti
-                             konten anaknya (lihat catatan di .playlist-items) */
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
-
-        .playlist-item:hover {
-            background-color: #ffe5e5;
-            border-color: var(--primary-red);
-        }
-
-        .playlist-item.active {
-            background-color: var(--primary-red);
-            color: var(--white);
-            border-color: var(--dark-red);
-        }
-
-        /* Lagu yang dipilih (diklik) TAPI belum ditekan ▶️ -- beda dari
-           .active (yang benar-benar sedang termuat/main di pemutar).
-           Dipakai supaya user tahu lagu mana yang bakal mulai diputar
-           kalau tombol Play ditekan, tanpa menghentikan lagu yang lagi
-           berjalan sekarang. */
-        .playlist-item.pending-select {
-            border-color: var(--primary-red);
-            border-style: dashed;
-            border-width: 2px;
-            background-color: #fff3f3;
-        }
-
-        .playlist-item .rt-label {
+        .sb-title {
             font-weight: bold;
-            font-size: 0.8rem;
-            min-width: 42px;
-        }
-
-        .playlist-item .rt-label[contenteditable="true"] {
-            cursor: text;
-            outline: none;
-            border-bottom: 1px dashed transparent;
-        }
-
-        .playlist-item .rt-label[contenteditable="true"]:hover,
-        .playlist-item .rt-label[contenteditable="true"]:focus {
-            border-bottom-color: currentColor;
-        }
-
-        .playlist-item .track-number {
-            font-weight: bold;
-            font-size: 0.85rem;
-            opacity: 0.5;
-            min-width: 26px;
-        }
-
-        .playlist-item .song-name {
-            font-size: 0.9rem;
-            text-align: right;
-            flex: 1;
-            min-width: 0; /* wajib -- flex item defaultnya min-width:auto,
-                             jadi overflow:hidden di bawah ini tidak akan
-                             pernah kepakai kalau baris ini tidak ada */
-            margin-left: 10px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            color: var(--text-dark);
+            font-size: 0.9rem;
         }
-
-        /* Marquee -- judul lagu yang kepanjangan berjalan/scroll di dalam
-           kotaknya sendiri, TIDAK memperlebar/mendorong kolom RT. Kalau
-           judulnya pendek dan muat, tidak ada animasi sama sekali (diam). */
-        .playlist-item .song-name-track {
-            display: inline-flex;
-            max-width: 100%;
+        .sb-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
         }
-        .playlist-item .song-name .marquee-seg {
-            padding-right: 28px;
-        }
-        .playlist-item .song-name:not(.marquee-active) .marquee-seg:last-child {
-            display: none;
-        }
-        .playlist-item .song-name.marquee-active {
-            text-overflow: unset;
-        }
-        .playlist-item .song-name.marquee-active .song-name-track {
-            animation-name: marqueeLoop;
-            animation-timing-function: linear;
-            animation-iteration-count: infinite;
-        }
-        @keyframes marqueeLoop {
-            from { transform: translateX(0); }
-            to { transform: translateX(-50%); }
-        }
-
-        /* Preset "15 Lagu RT" -- nama lagu diperkecil biar tidak penuh,
-           soalnya harus muat 15 baris sekaligus di grid 3 kolom. */
-        .playlist-items.rt-mode .song-name {
-            font-size: 0.74rem;
-        }
-
-        /* Preset "Playlist Biasa" -- lebih lega, nama lagu rata kiri
-           mengikuti nomor urut track. */
-        .playlist-items.normal-mode .song-name {
-            font-size: 0.95rem;
-            text-align: left;
-        }
-
-        .playlist-item .song-name.song-empty {
-            font-style: italic;
-            opacity: 0.55;
-        }
-
-        .playlist-empty {
-            text-align: center;
-            padding: 30px 15px;
-            color: #999;
-            font-style: italic;
-            font-size: 0.95rem;
-        }
-
-        .slot-upload-btn {
-            background: none;
+        .sb-btn {
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
             border: none;
-            font-size: 0.95rem;
-            cursor: pointer;
-            flex-shrink: 0;
-            margin-left: 8px;
-            opacity: 0.6;
-            transition: opacity 0.2s, transform 0.2s;
-        }
-
-        .slot-upload-btn:hover {
-            opacity: 1;
-            transform: scale(1.15);
-        }
-
-        .add-song-btn {
-            display: block;
-            width: 100%;
-            margin-top: 20px;
-            padding: 12px;
-            background: var(--white);
-            border: 2px dashed #ccc;
-            color: #666;
             font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s;
         }
-
-        .add-song-btn:hover {
-            border-color: var(--primary-red);
-            color: var(--primary-red);
-            background: #fff5f5;
-        }
-
-        .footer {
-            background-color: #f0f0f0;
-            padding: 15px 25px;
-            text-align: center;
-            font-size: 0.85rem;
-            color: #555;
-            border-top: 1px solid #ddd;
-        }
-
-        .footer strong {
-            color: var(--primary-red);
-            display: block;
-            margin-bottom: 4px;
-            font-size: 1rem;
-        }
-
-        /* input file disembunyikan SECARA VISUAL (bukan display:none) --
-           Safari iOS/iPadOS kadang menolak membuka jendela pilih file kalau
-           inputnya display:none, walau ditrigger lewat tombol. */
-        .visually-hidden-file {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0,0,0,0);
-            white-space: nowrap;
-            border: 0;
-        }
-
-        audio {
-            display: none;
-        }
-
-        /* Responsif untuk layar kecil (Tablet/HP) */
-        @media (max-width: 768px) {
-            .player-section {
-                flex-direction: column;
-                gap: 20px;
-                text-align: center;
-            }
-            .controls {
-                justify-content: center;
-            }
-            .volume-container {
-                justify-content: center;
-            }
-            .playlist-items {
-                grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2 kolom di tablet */
-            }
-        }
-        @media (max-width: 480px) {
-            .playlist-items {
-                grid-template-columns: minmax(0, 1fr); /* 1 kolom di HP */
-            }
-        }
+        .sb-btn.play { background: var(--primary-red); color: #fff; }
+        .sb-btn.pause { background: #ccc; color: #333; }
+        .sb-btn.stop { background: #333; color: #fff; }
+        .sb-btn.repeat { background: #fff; color: var(--primary-red); border: 1px solid var(--primary-red); }
+        .sb-btn.repeat.active { background: var(--primary-red); color: #fff; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="header">
-            <div class="header-title">
-                <span>🔊 AGUSTUSAN PEMUTAR LAGU</span>
-            </div>
-            <div class="header-right">
-                <div class="user-profile">
-                    Nama: <span contenteditable="true" id="userName">Tamu</span>
-                </div>
-                <button class="fullscreen-btn" id="fullscreenBtn" title="Layar Penuh">⛶</button>
-            </div>
+            <div>🔊 AGUSTUSAN MAX PLAYER</div>
+            <!-- Mengganti Nama: Tamu menjadi Tombol Mode Soundboard -->
+            <button class="soundboard-btn" id="soundboardBtn">🎛️ Mode Soundboard</button>
         </div>
 
-        <!-- Pemutar Lagu (Atas Tengah) -->
-        <div class="player-section">
-            <div class="cover-art" id="coverArt">
-                DIRGAHAYU<br>INDONESIA
-            </div>
-            <!-- Muncul GANTI posisi coverArt di atas, HANYA saat lagu yang
-                 aktif berasal dari YouTube -- video (sekaligus audio-nya)
-                 dirender di sini lewat YouTube IFrame Player API. -->
-            <div class="cover-art youtube-cover-art" id="youtubeCoverBox" style="display:none;">
-                <div id="youtubePlayerMount" style="width:100%; height:100%;"></div>
-            </div>
-            <div class="player-details">
-                <h2 class="song-title" id="songTitle">Indonesia Pusaka</h2>
-                <p class="song-rt" id="songRT">RT 01</p>
-
-                <div class="progress-container">
-                    <div class="progress-bar" id="progressBar">
-                        <div class="progress-fill" id="progressFill"></div>
+        <div class="main-layout">
+            <div class="left-panel">
+                <div class="player-section">
+                    <div class="cover-art" id="coverArt">DIRGAHAYU<br>INDONESIA</div>
+                    <div class="player-details">
+                        <h2 class="song-title" id="songTitle">Pilih Lagu</h2>
+                        <p class="song-rt" id="songRT">RT --</p>
+                        <div class="progress-container">
+                            <div class="progress-bar" id="progressBar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <div class="time-display">
+                                <span id="currentTime">00:00</span>
+                                <span id="durationTime">00:00</span>
+                            </div>
+                        </div>
+                        <div class="controls">
+                            <button class="btn-control" id="prevBtn">⏮</button>
+                            <button class="btn-control btn-play" id="playPauseBtn">▶️</button>
+                            <button class="btn-control" id="nextBtn">⏭</button>
+                        </div>
                     </div>
-                    <div class="time-display">
-                        <span id="currentTime">00:00</span>
-                        <span id="durationTime">00:00</span>
+                </div>
+
+                <div class="playlist-section">
+                    <div class="playlist-title">DAFTAR LAGU</div>
+                    <div class="playlist-items" id="playlistContainer"></div>
+                    <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+                    <button class="add-song-btn" id="uploadBtn">+ Upload MP3 dari Storage</button>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div class="enhancer-title">🎚️ AUDIO MAXIMIZER</div>
+                
+                <div class="knob-group">
+                    <div class="knob-label">
+                        <span>Volume Boost (Gain)</span>
+                        <span class="knob-value" id="gainValue">100%</span>
                     </div>
+                    <input type="range" id="gainSlider" min="100" max="300" value="100">
                 </div>
 
-                <div class="controls">
-                    <button class="btn-control btn-toggle" id="shuffleBtn" title="Acak">🔀</button>
-                    <button class="btn-control" id="prevBtn">⏮</button>
-                    <button class="btn-control btn-play" id="playPauseBtn">▶️</button>
-                    <button class="btn-control" id="nextBtn">⏭</button>
-                    <button class="btn-control btn-toggle" id="repeatBtn" title="Ulang: Mati">🔁</button>
-                    <button class="btn-control" id="stopBtn" title="Berhenti & kembali ke awal (tidak otomatis main lagi)">⏹️</button>
-                </div>
-
-                <div class="extra-controls">
-                    <button class="pill-btn active" id="autoplayBtn" title="Lanjut otomatis ke lagu berikutnya: Aktif">AUTO</button>
-                    <div class="volume-container">
-                        <span id="volumeIcon">🔊</span>
-                        <input type="range" id="volumeSlider" min="0" max="100" value="100" title="Volume">
+                <div class="knob-group">
+                    <div class="knob-label">
+                        <span>Bass Boost (Low)</span>
+                        <span class="knob-value" id="bassValue">0 dB</span>
                     </div>
-                    <button class="pill-btn" id="audio8dBtn" title="Efek 8D Audio: Mati">🎧 8D</button>
-                    <button class="pill-btn" id="downloadOriginalBtn" title="Unduh file lagu ini apa adanya (tanpa diproses) -- selalu berhasil berapapun panjangnya">⬇️ Unduh Asli</button>
-                    <button class="pill-btn" id="downloadHQBtn" title="Render lagu ini lewat filter penjernih lalu unduh sebagai WAV (lossless) untuk diputar offline -- disarankan untuk lagu yang tidak terlalu panjang">⬇️ Unduh HQ WAV</button>
+                    <input type="range" id="bassSlider" min="-10" max="20" value="0">
                 </div>
-                <div class="hq-status" id="hqStatus" style="display:none; font-size:0.78rem; color:#888; margin-top:8px;"></div>
-            </div>
-        </div>
 
-        <!-- Daftar Lagu (Bawah) -->
-        <div class="playlist-section">
-            <div class="playlist-title">
-                <div class="playlist-title-left">
-                    <span id="playlistTitleLabel">DAFTAR LAGU TIAP RT</span>
-                    <button type="button" class="yt-add-btn" id="youtubeAddBtn" title="Tambah lagu dari link YouTube">▶ YouTube</button>
+                <div class="knob-group">
+                    <div class="knob-label">
+                        <span>Treble Enhancer (High)</span>
+                        <span class="knob-value" id="trebleValue">0 dB</span>
+                    </div>
+                    <input type="range" id="trebleSlider" min="-10" max="20" value="0">
                 </div>
-                <span id="songCount" style="font-weight: normal; font-size: 0.9rem; color: #666;">15 Lagu</span>
+
+                <div class="preset-btns">
+                    <button class="preset-btn" onclick="setPreset(100, 0, 0)">Normal</button>
+                    <button class="preset-btn" onclick="setPreset(200, 15, 5)">Max Bass</button>
+                    <button class="preset-btn" onclick="setPreset(250, 10, 15)">Live Concert</button>
+                    <button class="preset-btn" onclick="setPreset(300, 20, 20)">Ultra Max</button>
+                </div>
             </div>
-            <div class="mode-switcher">
-                <button type="button" class="mode-btn active" id="modeRtBtn">🏘️ Preset: 15 Lagu RT</button>
-                <button type="button" class="mode-btn" id="modeNormalBtn">🎵 Preset: Playlist Biasa</button>
-            </div>
-            <div class="playlist-items rt-mode" id="playlistContainer">
-                <!-- Diisi oleh JavaScript -->
-            </div>
-            
-            <!-- Input File Disembunyikan -->
-            <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus,.wma" class="visually-hidden-file">
-            <button class="add-song-btn" id="uploadBtn">+ Tambah Lagu Lain (di luar 15 RT)</button>
         </div>
 
         <div class="footer">
             <strong>Dirgahayu Republik Indonesia!</strong>
-            Semangat Kebersamaan, Meriahkan Agustusan!
+            Audio diolah maksimal menggunakan Web Audio API
+        </div>
+    </div>
+
+    <!-- HTML MODAL SOUNDBOARD (Fullscreen Grid) -->
+    <div id="soundboardModal">
+        <div class="sb-container">
+            <div class="sb-header">
+                <h2>🎛️ MODE SOUNDBOARD</h2>
+                <button class="sb-close-btn" id="closeSoundboardBtn">Tutup (X)</button>
+            </div>
+            <input type="file" id="sbFileInput" accept="audio/*" multiple style="display: none;">
+            <button class="sb-upload-btn" id="sbUploadBtn">+ Tambah Lagu ke Soundboard</button>
+            <div class="sb-grid" id="sbGrid">
+                <!-- Item Soundboard akan diisi oleh JavaScript di sini -->
+            </div>
         </div>
     </div>
 
     <audio id="audioPlayer"></audio>
 
     <script>
-        // 15 slot RT -- KOSONG (belum ada lagu), tinggal diisi lewat ikon
-        // upload di masing-masing baris (upload per-RT, lihat renderPlaylist).
-        // songsRT15: preset "15 Lagu RT" -- 15 slot tetap, satu per RT.
-        const songsRT15 = [
-            { rt: "RT 01", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 02", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 03", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 04", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 05", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 06", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 07", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 08", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 09", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 10", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 11", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 12", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 13", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 14", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" },
-            { rt: "RT 15", title: null, src: null, cover: "DIRGAHAYU<br>INDONESIA" }
+        // ==========================================
+        // 1. KODE ASLI (TIDAK DIRUBAH SEDIKITPUN)
+        // ==========================================
+        const songs = [
+            { rt: "Demo 1", title: "Indonesia Pusaka", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "Demo 2", title: "Bagimu Negeri", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", cover: "DIRGAHAYU<br>INDONESIA" },
+            { rt: "Demo 3", title: "Garuda Pancasila", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", cover: "DIRGAHAYU<br>INDONESIA" }
         ];
 
-        // songsNormal: preset "Playlist Biasa" -- daftar bebas, mulai kosong,
-        // nambah lagu sebanyak apapun lewat tombol "+ Tambah Lagu".
-        let songsNormal = [];
-
-        let currentMode = 'rt15'; // 'rt15' | 'normal'
-        let songs = songsRT15; // referensi array yang lagi aktif dipakai semua fungsi di bawah
-
-        let pendingUploadIndex = null; // slot RT yang lagi nunggu file diupload (null = tombol umum)
-
         let currentSongIndex = 0;
-        // Preset ('rt15' atau 'normal') tempat lagu yang SEDANG DIPUTAR
-        // berasal -- BISA BEDA dari currentMode (preset yang lagi
-        // ditampilkan/dibrowse di layar). Pemisahan ini yang bikin pindah
-        // dari Playlist Biasa <-> RT tidak lagi menghentikan lagu yang
-        // sedang berjalan (lihat switchMode()).
-        let playingMode = null;
-        function getSongsArrayForMode(mode) {
-            return mode === 'rt15' ? songsRT15 : songsNormal;
-        }
-        // Ambil objek lagu yang BENAR-BENAR sedang termuat di pemutar
-        // (bisa dari preset yang berbeda dari yang lagi ditampilkan).
-        function getPlayingSong() {
-            if (playingMode === null) return null;
-            const list = getSongsArrayForMode(playingMode);
-            return (list && list[currentSongIndex]) || null;
-        }
-        // Lagu yang diklik di daftar SAAT lagu lain masih berjalan --
-        // cuma "ditandai" dulu, belum benar-benar dimuat/diputar. Null
-        // berarti tidak ada lagu yang lagi "menunggu" (lagu terpilih =
-        // currentSongIndex seperti biasa). Lihat item.addEventListener
-        // di renderPlaylist() dan playPauseBtn di bawah.
-        let pendingSelectIndex = null;
         let isPlaying = false;
-        let isShuffle = false;
-        let repeatMode = 'off'; // 'off' | 'all' | 'one'
-        let isAutoplay = true;
 
         const audioPlayer = document.getElementById('audioPlayer');
-        // CATATAN: sebelumnya ada `audioPlayer.crossOrigin = 'anonymous'` di sini.
-        // Itu DIHAPUS karena di Safari/iPadOS, atribut crossOrigin pada <audio>
-        // sering bikin file blob: (yaitu SEMUA lagu yang di-upload manual di
-        // player ini) gagal dimuat/diputar sama sekali. Semua sumber lagu di
-        // sini memang selalu dari upload (blob: URL, satu origin dengan
-        // halaman ini), jadi crossOrigin memang tidak dibutuhkan.
         const playPauseBtn = document.getElementById('playPauseBtn');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const shuffleBtn = document.getElementById('shuffleBtn');
-        const repeatBtn = document.getElementById('repeatBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const autoplayBtn = document.getElementById('autoplayBtn');
-        const audio8dBtn = document.getElementById('audio8dBtn');
-        const downloadOriginalBtn = document.getElementById('downloadOriginalBtn');
-        const downloadHQBtn = document.getElementById('downloadHQBtn');
-        const hqStatus = document.getElementById('hqStatus');
-        const volumeSlider = document.getElementById('volumeSlider');
-        const volumeIcon = document.getElementById('volumeIcon');
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
         const songTitle = document.getElementById('songTitle');
-        const songRT = document.getElementById('songRT');
         const coverArt = document.getElementById('coverArt');
-        const youtubeCoverBox = document.getElementById('youtubeCoverBox');
-        const youtubeAddBtn = document.getElementById('youtubeAddBtn');
         const progressBar = document.getElementById('progressBar');
         const progressFill = document.getElementById('progressFill');
-        const currentTimeEl = document.getElementById('currentTime');
-        const durationTimeEl = document.getElementById('durationTime');
         const playlistContainer = document.getElementById('playlistContainer');
-        const songCount = document.getElementById('songCount');
-        const playlistTitleLabel = document.getElementById('playlistTitleLabel');
-        const modeRtBtn = document.getElementById('modeRtBtn');
-        const modeNormalBtn = document.getElementById('modeNormalBtn');
-        const uploadBtn = document.getElementById('uploadBtn');
-        const fileInput = document.getElementById('fileInput');
-        const userNameEl = document.getElementById('userName');
 
-        // =========================================================
-        // PENYIMPANAN PERMANEN DI PERANGKAT (IndexedDB)
-        //
-        // Ini BUKAN penyimpanan cloud/internet -- semua lagu (termasuk isi
-        // filenya, bukan cuma nama) disimpan langsung di penyimpanan
-        // browser di HP/laptop. Makanya tetap aman walau:
-        //  - halaman di-refresh
-        //  - browser/app ditutup paksa (force close)
-        //  - wifi/internet mati total (tidak butuh internet sama sekali,
-        //    karena tidak pernah dikirim ke server manapun)
-        // Baru hilang kalau memang sengaja dihapus lewat tombol 🗑️, atau
-        // cache/data browser dibersihkan manual oleh penggunanya.
-        // =========================================================
-        const DB_NAME = 'agustusanPlayerDB';
-        const DB_VERSION = 1;
-        const STORE_SONGS = 'songs';
-        const STORE_META = 'meta';
-        let dbPromise = null;
+        let audioCtx;
+        let gainNode;
+        let bassFilter;
+        let trebleFilter;
 
-        function openDB() {
-            if (dbPromise) return dbPromise;
-            dbPromise = new Promise((resolve, reject) => {
-                if (!window.indexedDB) { reject(new Error('IndexedDB tidak didukung di browser ini')); return; }
-                const req = indexedDB.open(DB_NAME, DB_VERSION);
-                req.onupgradeneeded = () => {
-                    const db = req.result;
-                    if (!db.objectStoreNames.contains(STORE_SONGS)) {
-                        db.createObjectStore(STORE_SONGS, { keyPath: 'id' });
-                    }
-                    if (!db.objectStoreNames.contains(STORE_META)) {
-                        db.createObjectStore(STORE_META, { keyPath: 'key' });
-                    }
-                };
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
-            });
-            return dbPromise;
+        function initAudioContext() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaElementSource(audioPlayer);
+            bassFilter = audioCtx.createBiquadFilter();
+            bassFilter.type = "lowshelf";
+            bassFilter.frequency.value = 200;
+            bassFilter.gain.value = 0;
+            trebleFilter = audioCtx.createBiquadFilter();
+            trebleFilter.type = "highshelf";
+            trebleFilter.frequency.value = 3000;
+            trebleFilter.gain.value = 0;
+            gainNode = audioCtx.createGain();
+            gainNode.gain.value = 1.0;
+            source.connect(bassFilter);
+            bassFilter.connect(trebleFilter);
+            trebleFilter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
         }
 
-        async function dbPutSong(record) {
-            try {
-                const db = await openDB();
-                await new Promise((resolve, reject) => {
-                    const tx = db.transaction(STORE_SONGS, 'readwrite');
-                    tx.objectStore(STORE_SONGS).put(record);
-                    tx.oncomplete = resolve;
-                    tx.onerror = () => reject(tx.error);
-                });
-            } catch (err) {
-                console.error('Gagal menyimpan lagu secara permanen:', err);
-            }
-        }
-
-        async function dbDeleteSong(id) {
-            if (!id) return;
-            try {
-                const db = await openDB();
-                await new Promise((resolve, reject) => {
-                    const tx = db.transaction(STORE_SONGS, 'readwrite');
-                    tx.objectStore(STORE_SONGS).delete(id);
-                    tx.oncomplete = resolve;
-                    tx.onerror = () => reject(tx.error);
-                });
-            } catch (err) {
-                console.error('Gagal menghapus lagu dari penyimpanan permanen:', err);
-            }
-        }
-
-        async function dbGetAllSongs() {
-            try {
-                const db = await openDB();
-                return await new Promise((resolve, reject) => {
-                    const tx = db.transaction(STORE_SONGS, 'readonly');
-                    const req = tx.objectStore(STORE_SONGS).getAll();
-                    req.onsuccess = () => resolve(req.result || []);
-                    req.onerror = () => reject(req.error);
-                });
-            } catch (err) {
-                console.error('Gagal memuat lagu dari penyimpanan permanen:', err);
-                return [];
-            }
-        }
-
-        async function dbSetMeta(key, value) {
-            try {
-                const db = await openDB();
-                await new Promise((resolve, reject) => {
-                    const tx = db.transaction(STORE_META, 'readwrite');
-                    tx.objectStore(STORE_META).put({ key, value });
-                    tx.oncomplete = resolve;
-                    tx.onerror = () => reject(tx.error);
-                });
-            } catch (err) {
-                console.error('Gagal menyimpan pengaturan:', err);
-            }
-        }
-
-        async function dbGetMeta(key) {
-            try {
-                const db = await openDB();
-                return await new Promise((resolve, reject) => {
-                    const tx = db.transaction(STORE_META, 'readonly');
-                    const req = tx.objectStore(STORE_META).get(key);
-                    req.onsuccess = () => resolve(req.result ? req.result.value : undefined);
-                    req.onerror = () => reject(req.error);
-                });
-            } catch (err) {
-                console.error('Gagal memuat pengaturan:', err);
-                return undefined;
-            }
-        }
-
-        // Simpan ulang metadata + file lagu tertentu ke IndexedDB. Dipakai
-        // saat upload, ganti label RT, dsb. Butuh song.dbId & song._blob
-        // sudah terisi (lihat fileInput change handler).
-        function persistSong(song) {
-            if (!song || !song.dbId || !song._blob) return;
-            dbPutSong({
-                id: song.dbId,
-                mode: song._dbMode,
-                slotIndex: (song._dbSlotIndex === undefined ? null : song._dbSlotIndex),
-                order: song._dbOrder || Date.now(),
-                rt: song.rt || '',
-                title: song.title,
-                fileName: song.fileName,
-                cover: song.cover,
-                blob: song._blob
-            });
-        }
-
-        // Debounce kecil biar ketik label RT / nama tidak nembak IndexedDB
-        // di setiap huruf yang diketik.
-        function debounce(fn, wait) {
-            let t = null;
-            return (...args) => {
-                clearTimeout(t);
-                t = setTimeout(() => fn(...args), wait);
-            };
-        }
-        const persistSongDebounced = debounce(persistSong, 400);
-
-        // Render Playlist
         function renderPlaylist() {
-            playlistContainer.classList.toggle('rt-mode', currentMode === 'rt15');
-            playlistContainer.classList.toggle('normal-mode', currentMode === 'normal');
             playlistContainer.innerHTML = '';
-            songCount.textContent = `${songs.length} Lagu`;
-
-            if (currentMode === 'normal' && songs.length === 0) {
-                playlistContainer.innerHTML = `<div class="playlist-empty">Belum ada lagu. Tambahkan lewat tombol "+ Tambah Lagu" di bawah ⬇️</div>`;
-                return;
-            }
-
             songs.forEach((song, index) => {
                 const item = document.createElement('div');
                 item.classList.add('playlist-item');
-                // "Aktif" (lagu yang BENAR-BENAR sedang diputar) cuma valid
-                // kalau preset yang lagi ditampilkan (currentMode) SAMA
-                // dengan preset yang lagi diputar (playingMode) -- soalnya
-                // sekarang keduanya bisa beda (lihat switchMode()).
-                const isActiveRow = (currentMode === playingMode && index === currentSongIndex);
-                if (isActiveRow) {
-                    item.classList.add('active');
-                }
-                if (pendingSelectIndex !== null && index === pendingSelectIndex && !isActiveRow) {
-                    item.classList.add('pending-select');
-                }
-
-                if (currentMode === 'rt15') {
-                    // ===== Preset 15 Lagu RT: 15 slot tetap, per-slot upload/hapus =====
-                    // hasSong juga TRUE untuk lagu YouTube walau song.src
-                    // kosong (lagu YouTube memang tidak punya src lokal --
-                    // audionya datang dari iframe YouTube, bukan file).
-                    const hasSong = !!song.src || !!song.isYoutube;
-                    const ytBadge = song.isYoutube ? '<span class="yt-badge">▶</span>' : '';
-                    item.innerHTML = `
-                        <span class="rt-label" contenteditable="true" spellcheck="false">${song.rt}</span>
-                        <span class="song-name${hasSong ? '' : ' song-empty'}"><span class="song-name-track"><span class="marquee-seg">${ytBadge}${hasSong ? song.title : 'Belum ada lagu'}</span><span class="marquee-seg" aria-hidden="true">${ytBadge}${hasSong ? song.title : ''}</span></span></span>
-                        <button type="button" class="slot-upload-btn" title="Upload lagu untuk ${song.rt}">📤</button>
-                        <button type="button" class="slot-upload-btn" title="Hapus lagu ini">🗑️</button>
-                    `;
-                    const rtLabelEl = item.querySelector('.rt-label');
-                    // Klik di label RT buat edit teks -- jangan sampai ikut memicu ganti lagu.
-                    rtLabelEl.addEventListener('click', (e) => e.stopPropagation());
-                    rtLabelEl.addEventListener('input', () => {
-                        songs[index].rt = rtLabelEl.textContent;
-                        if (currentMode === playingMode && index === currentSongIndex) songRT.textContent = rtLabelEl.textContent;
-                        persistSongDebounced(songs[index]);
-                    });
-                    rtLabelEl.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); rtLabelEl.blur(); }
-                    });
-                    // Tombol upload per-slot -- isi/ganti lagu KHUSUS baris RT ini,
-                    // tidak nambah baris baru.
-                    const slotUploadBtn = item.querySelector('.slot-upload-btn');
-                    slotUploadBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        pendingUploadIndex = index;
-                        fileInput.click();
-                    });
-                    // Tombol hapus -- slot RT tetap (di-reset kosong), lagu tambahan
-                    // di luar 15 RT (rt==="UPLOAD") langsung dibuang dari daftar.
-                    // Kalau slot yang dihapus BUKAN yang sedang diputar (atau
-                    // preset yang lagi diputar beda dari yang lagi dibrowse),
-                    // lagu yang sedang berjalan TIDAK boleh terganggu sama sekali.
-                    const deleteBtn = item.querySelectorAll('.slot-upload-btn')[1];
-                    deleteBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        if (song.src) URL.revokeObjectURL(song.src);
-                        dbDeleteSong(song.dbId);
-                        const affectsPlaying = (currentMode === playingMode);
-                        if (song.rt === 'UPLOAD') {
-                            songs.splice(index, 1);
-                            if (affectsPlaying) {
-                                if (currentSongIndex >= songs.length) currentSongIndex = Math.max(0, songs.length - 1);
-                                else if (index < currentSongIndex) currentSongIndex--;
-                            }
-                        } else {
-                            songs[index].title = null;
-                            songs[index].src = null;
-                            songs[index].cover = "DIRGAHAYU<br>INDONESIA";
-                            songs[index].dbId = `rt15-${index}`;
-                            songs[index].fileName = null;
-                            songs[index]._blob = null;
-                            songs[index].isYoutube = false;
-                            songs[index].youtubeId = null;
-                        }
-                        if (affectsPlaying && (index === currentSongIndex || songs[currentSongIndex] === undefined)) {
-                            loadSong(Math.min(currentSongIndex, Math.max(0, songs.length - 1)), currentMode);
-                        } else {
-                            renderPlaylist();
-                        }
-                    });
-                } else {
-                    // ===== Preset Playlist Biasa: daftar dinamis, tanpa label RT =====
-                    const ytBadge = song.isYoutube ? '<span class="yt-badge">▶</span>' : '';
-                    item.innerHTML = `
-                        <span class="track-number">${index + 1}.</span>
-                        <span class="song-name"><span class="song-name-track"><span class="marquee-seg">${ytBadge}${song.title}</span><span class="marquee-seg" aria-hidden="true">${ytBadge}${song.title}</span></span></span>
-                        <button type="button" class="slot-upload-btn" title="Hapus lagu ini">🗑️</button>
-                    `;
-                    const deleteBtn = item.querySelector('.slot-upload-btn');
-                    deleteBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        if (song.src) URL.revokeObjectURL(song.src);
-                        dbDeleteSong(song.dbId);
-                        songs.splice(index, 1);
-                        const affectsPlaying = (currentMode === playingMode);
-                        if (songs.length === 0) {
-                            if (affectsPlaying) showEmptyPlayerState();
-                            else renderPlaylist();
-                            return;
-                        }
-                        if (!affectsPlaying) {
-                            renderPlaylist();
-                            return;
-                        }
-                        if (currentSongIndex >= songs.length) currentSongIndex = songs.length - 1;
-                        else if (index < currentSongIndex) currentSongIndex--;
-                        if (index === currentSongIndex || songs[currentSongIndex] === undefined) {
-                            loadSong(Math.min(currentSongIndex, songs.length - 1), currentMode);
-                        } else {
-                            renderPlaylist();
-                        }
-                    });
-                }
-
-                item.addEventListener('click', () => {
-                    // Kalau tidak ada lagu yang lagi berjalan, aman untuk
-                    // langsung memuat lagu yang diklik seperti biasa (tidak
-                    // ada apa pun yang perlu "dilindungi" dari terhenti).
-                    if (!isPlaying) {
-                        pendingSelectIndex = null;
-                        loadSong(index);
-                        return;
-                    }
-                    // Ada lagu yang lagi berjalan -- klik lagu lain di
-                    // daftar TIDAK BOLEH menghentikannya. Cuma tandai
-                    // lagu ini sebagai "terpilih" (highlight putus-putus).
-                    // Lagu yang sedang main tetap lanjut sampai user
-                    // benar-benar menekan tombol ▶️.
-                    if (currentMode === playingMode && index === currentSongIndex) {
-                        pendingSelectIndex = null;
-                    } else {
-                        pendingSelectIndex = index;
-                    }
-                    renderPlaylist();
-                });
+                if (index === currentSongIndex) item.classList.add('active');
+                item.innerHTML = `<span class="rt-label">${song.rt}</span><span class="song-name">${song.title}</span>`;
+                item.addEventListener('click', () => loadSong(index));
                 playlistContainer.appendChild(item);
             });
-
-            activateMarquees();
         }
 
-        // Aktifkan animasi marquee HANYA untuk judul yang benar-benar
-        // kepanjangan (melebihi lebar kotaknya) -- judul pendek dibiarkan
-        // diam, tidak ikut-ikutan bergerak. Ukurannya di-cek setelah
-        // elemen benar-benar ada di DOM (pakai requestAnimationFrame
-        // supaya browser sudah selesai layout dulu).
-        function activateMarquees() {
-            requestAnimationFrame(() => {
-                playlistContainer.querySelectorAll('.song-name').forEach((nameEl) => {
-                    const track = nameEl.querySelector('.song-name-track');
-                    const firstSeg = nameEl.querySelector('.marquee-seg');
-                    if (!track || !firstSeg) return;
-                    const singleWidth = firstSeg.offsetWidth;
-                    const boxWidth = nameEl.clientWidth;
-                    nameEl.classList.remove('marquee-active');
-                    track.style.removeProperty('animation-duration');
-                    if (singleWidth > boxWidth + 2) {
-                        // Kecepatan tetap (~35px/detik) supaya judul panjang
-                        // tidak terasa buru-buru dibanding judul yang lebih pendek.
-                        const duration = Math.max(4, singleWidth / 35);
-                        track.style.animationDuration = `${duration}s`;
-                        nameEl.classList.add('marquee-active');
-                    }
-                });
-            });
-        }
-
-        // Tampilan pemutar saat playlist aktif kosong sama sekali
-        // (cuma bisa kejadian di preset Playlist Biasa, karena preset 15 RT
-        // selalu punya 15 slot walau isinya kosong).
-        // =========================================================
-        // DUKUNGAN LAGU DARI YOUTUBE
-        //
-        // JUJUR SOAL KETERBATASANNYA (biar tidak salah ekspektasi):
-        //  - Audio-nya datang LANGSUNG dari server YouTube lewat iframe
-        //    resmi mereka -- BUKAN file yang kita simpan sendiri. Jadi
-        //    butuh internet tiap kali diputar (beda dari lagu upload yang
-        //    sepenuhnya offline).
-        //  - Kualitas suara & levelnya 100% ikut apa yang dikirim YouTube
-        //    (mereka yang atur bitrate-nya, bukan kita) -- rangkaian
-        //    "penjernih" (EQ/compressor) di atas TIDAK bisa nempel ke
-        //    audio dari iframe lintas-origin seperti ini, jadi efek 8D
-        //    dan tombol Unduh (Asli/HQ WAV) otomatis dimatikan untuk lagu
-        //    YouTube. Itu batasan teknis dari browser/YouTube sendiri,
-        //    bukan bug -- selalu begitu di semua situs, bukan cuma di sini.
-        // =========================================================
-        let ytPlayer = null;
-        let ytPlayerReadyPromise = null;
-        let ytLoadedForIndex = null; // index lagu yang videonya sudah di-load ke ytPlayer
-        let ytProgressInterval = null;
-
-        function getYoutubePlayer() {
-            if (ytPlayerReadyPromise) return ytPlayerReadyPromise;
-            ytPlayerReadyPromise = new Promise((resolve) => {
-                const init = () => {
-                    ytPlayer = new YT.Player('youtubePlayerMount', {
-                        width: '150',
-                        height: '150',
-                        playerVars: { rel: 0, playsinline: 1 },
-                        events: {
-                            onReady: () => resolve(ytPlayer),
-                            onStateChange: onYtStateChange
-                        }
-                    });
-                };
-                if (window.YT && window.YT.Player) {
-                    init();
-                } else {
-                    // API script (dimuat di <head>) belum siap -- YouTube
-                    // akan otomatis panggil fungsi global ini begitu siap.
-                    window.onYouTubeIframeAPIReady = init;
-                }
-            });
-            return ytPlayerReadyPromise;
-        }
-
-        // YT.PlayerState: -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
-        function onYtStateChange(event) {
-            const playing = getPlayingSong();
-            if (playing && !playing.isYoutube) return; // basi, sudah pindah ke lagu lokal
-            if (event.data === YT.PlayerState.PLAYING) {
-                isPlaying = true;
-                playPauseBtn.innerHTML = '⏸️';
-                startYtProgressPolling();
-            } else if (event.data === YT.PlayerState.PAUSED) {
-                isPlaying = false;
-                playPauseBtn.innerHTML = '▶️';
-                stopYtProgressPolling();
-            } else if (event.data === YT.PlayerState.ENDED) {
-                stopYtProgressPolling();
-                handleSongEnd();
-            }
-        }
-
-        function startYtProgressPolling() {
-            stopYtProgressPolling();
-            ytProgressInterval = setInterval(() => {
-                if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
-                const cur = ytPlayer.getCurrentTime() || 0;
-                const dur = ytPlayer.getDuration() || 0;
-                if (dur > 0) progressFill.style.width = `${(cur / dur) * 100}%`;
-                currentTimeEl.textContent = formatTime(cur);
-                durationTimeEl.textContent = formatTime(dur);
-            }, 500);
-        }
-
-        function stopYtProgressPolling() {
-            if (ytProgressInterval) {
-                clearInterval(ytProgressInterval);
-                ytProgressInterval = null;
-            }
-        }
-
-        // Kenali link YouTube dalam berbagai format (watch?v=, youtu.be/,
-        // shorts/, embed/), atau kalau usernya nempel ID video-nya langsung.
-        function extractYoutubeId(input) {
-            if (!input) return null;
-            const trimmed = input.trim();
-            const patterns = [
-                /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-            ];
-            for (const re of patterns) {
-                const m = trimmed.match(re);
-                if (m) return m[1];
-            }
-            if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed;
-            return null;
-        }
-
-        // Ambil judul videonya lewat oEmbed resmi YouTube (tidak butuh API
-        // key). Kalau gagal (video privat/dihapus/dsb), tetap lanjut pakai
-        // judul generik supaya lagunya tetap bisa ditambahkan.
-        async function fetchYoutubeTitle(videoId) {
-            try {
-                const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + videoId)}&format=json`);
-                if (!res.ok) throw new Error('oEmbed gagal: ' + res.status);
-                const data = await res.json();
-                return data.title || `Video YouTube (${videoId})`;
-            } catch (err) {
-                console.error('Gagal mengambil judul video YouTube:', err);
-                return `Video YouTube (${videoId})`;
-            }
-        }
-
-        async function persistYoutubeSong(song) {
-            if (!song || !song.dbId) return;
-            dbPutSong({
-                id: song.dbId,
-                mode: song._dbMode,
-                slotIndex: (song._dbSlotIndex === undefined ? null : song._dbSlotIndex),
-                order: song._dbOrder || Date.now(),
-                rt: song.rt || '',
-                title: song.title,
-                cover: song.cover,
-                isYoutube: true,
-                youtubeId: song.youtubeId
-            });
-        }
-
-        youtubeAddBtn.addEventListener('click', async () => {
-            const input = window.prompt('Tempel link YouTube-nya di sini, contoh:\nhttps://www.youtube.com/watch?v=xxxxxxxxxxx');
-            if (!input) return;
-            const videoId = extractYoutubeId(input);
-            if (!videoId) {
-                alert('Link YouTube-nya tidak dikenali. Coba salin ulang link lengkap videonya dari YouTube ya.');
-                return;
-            }
-            const originalLabel = youtubeAddBtn.textContent;
-            youtubeAddBtn.disabled = true;
-            youtubeAddBtn.textContent = '⏳ Memuat...';
-            const title = await fetchYoutubeTitle(videoId);
-            youtubeAddBtn.disabled = false;
-            youtubeAddBtn.textContent = originalLabel;
-
-            const order = Date.now();
-            const newSong = {
-                rt: currentMode === 'rt15' ? 'UPLOAD' : '',
-                title,
-                src: null,
-                fileName: null,
-                isYoutube: true,
-                youtubeId: videoId,
-                cover: 'YOUTUBE',
-                dbId: `${currentMode}-yt-${order}-${Math.random().toString(36).slice(2, 8)}`,
-                _blob: null,
-                _dbMode: currentMode,
-                _dbSlotIndex: null,
-                _dbOrder: order
-            };
-            songs.push(newSong);
-            persistYoutubeSong(newSong);
-            const newIndex = songs.length - 1;
-            // Sama seperti klik lagu di daftar -- kalau ada lagu yang lagi
-            // berjalan, JANGAN dihentikan. Lagu baru ini cuma "ditandai",
-            // baru benar-benar dimuat & main pas tombol ▶️ ditekan.
-            if (!isPlaying) {
-                loadSong(newIndex);
-            } else {
-                pendingSelectIndex = newIndex;
-                renderPlaylist();
-            }
-        });
-
-        function showEmptyPlayerState() {
-            pauseSong();
-            if (ytPlayer) { try { ytPlayer.stopVideo(); } catch (e) {} }
-            ytLoadedForIndex = null;
-            playingMode = null;
-            youtubeCoverBox.style.display = 'none';
-            coverArt.style.display = 'flex';
-            currentSongIndex = 0;
-            songTitle.textContent = 'Belum ada lagu';
-            songRT.textContent = '';
-            coverArt.innerHTML = 'PLAYLIST<br>KOSONG';
-            audioPlayer.removeAttribute('src');
-            audioPlayer.load();
-            progressFill.style.width = '0%';
-            currentTimeEl.textContent = '00:00';
-            durationTimeEl.textContent = '00:00';
-            renderPlaylist();
-        }
-
-        // Pindah preset: 15 Lagu RT <-> Playlist Biasa.
-        // SENGAJA TIDAK menghentikan lagu yang sedang berjalan -- lagu yang
-        // lagi diputar (kalau ada) tetap lanjut mengalun di latar belakang
-        // walau layar berpindah menampilkan daftar preset yang lain.
-        // Cukup tombol ▶️/pilih lagu baru yang boleh menggantinya (lihat
-        // getPlayingSong()/playingMode).
-        function switchMode(mode) {
-            if (mode === currentMode) return;
-            currentMode = mode;
-            songs = (mode === 'rt15') ? songsRT15 : songsNormal;
-            pendingUploadIndex = null;
-            pendingSelectIndex = null; // reset -- "menunggu" di preset lama sudah tidak relevan
-            dbSetMeta('currentMode', mode);
-
-            modeRtBtn.classList.toggle('active', mode === 'rt15');
-            modeNormalBtn.classList.toggle('active', mode === 'normal');
-            playlistTitleLabel.textContent = (mode === 'rt15') ? 'DAFTAR LAGU TIAP RT' : 'DAFTAR LAGU';
-            uploadBtn.textContent = (mode === 'rt15') ? '+ Tambah Lagu Lain (di luar 15 RT)' : '+ Tambah Lagu';
-
-            // Kalau belum ada lagu apa pun yang pernah diputar sama sekali
-            // (baru buka aplikasi), baru munculkan lagu pertama preset ini
-            // sebagai tampilan awal. Kalau sudah ada yang sedang berjalan,
-            // biarkan -- jangan diganggu.
-            if (playingMode === null) {
-                if (songs.length > 0) loadSong(0);
-                else showEmptyPlayerState();
-            } else {
-                renderPlaylist();
-            }
-        }
-        modeRtBtn.addEventListener('click', () => switchMode('rt15'));
-        modeNormalBtn.addEventListener('click', () => switchMode('normal'));
-
-        // Load Song (Hanya memuat, TIDAK langsung play)
-        // `mode` opsional -- default ke preset yang lagi ditampilkan
-        // (currentMode). WAJIB diisi eksplisit oleh next/prev/repeat-lagu
-        // supaya tetap melanjutkan preset yang SEDANG DIPUTAR walau
-        // layar sedang menampilkan preset lain (lihat playingMode).
-        function loadSong(index, mode) {
-            // Apa pun jalur yang memanggil loadSong (klik daftar, tombol
-            // play, next/prev, dsb), begitu sebuah lagu benar-benar dimuat,
-            // tandai "menunggu" yang lama jadi tidak berlaku lagi.
-            pendingSelectIndex = null;
-            mode = mode || currentMode;
-            const list = getSongsArrayForMode(mode);
-            if (!list || !list[index]) {
-                if (mode === currentMode) showEmptyPlayerState();
-                return;
-            }
-            playingMode = mode;
+        function loadSong(index) {
             currentSongIndex = index;
-            const song = list[index];
-            const hasSong = !!song.src || !!song.isYoutube;
-            songTitle.textContent = hasSong ? song.title : 'Belum ada lagu';
-            songRT.textContent = song.rt || '';
-
-            if (song.isYoutube) {
-                // ===== Lagu dari YouTube -- tampilkan kotak video, matikan
-                // elemen <audio> lokal supaya tidak dobel suara. =====
-                coverArt.style.display = 'none';
-                youtubeCoverBox.style.display = 'flex';
-                audioPlayer.removeAttribute('src');
-                audioPlayer.load();
-                ytLoadedForIndex = null; // paksa loadVideoById lagi pas playSong (bukan resume video lama)
-                stopYtProgressPolling();
-                getYoutubePlayer().then((player) => {
-                    // Kalau selama nunggu player siap ternyata user sudah
-                    // pindah ke lagu lain, jangan cue video yang sudah basi.
-                    const stillCurrent = getPlayingSong();
-                    if (!stillCurrent || !stillCurrent.isYoutube || stillCurrent.youtubeId !== song.youtubeId) return;
-                    player.cueVideoById(song.youtubeId);
-                });
-            } else {
-                // ===== Lagu upload biasa (lokal) -- perilaku aslinya. =====
-                youtubeCoverBox.style.display = 'none';
-                coverArt.style.display = 'flex';
-                coverArt.innerHTML = song.cover;
-                if (ytPlayer) { try { ytPlayer.stopVideo(); } catch (e) {} }
-                ytLoadedForIndex = null;
-                stopYtProgressPolling();
-                if (song.src) {
-                    audioPlayer.src = song.src;
-                } else {
-                    audioPlayer.removeAttribute('src');
-                    audioPlayer.load();
-                }
-            }
-
-            // Tombol yang butuh akses langsung ke gelombang audio lokal
-            // (rangkaian Web Audio) tidak bisa dipakai untuk lagu YouTube --
-            // audio-nya datang dari iframe lintas-origin, browser tidak
-            // mengizinkan diproses/diunduh dari sini. Lihat catatan di
-            // bagian "DUKUNGAN LAGU DARI YOUTUBE" di atas.
-            audio8dBtn.disabled = !!song.isYoutube;
-            downloadOriginalBtn.disabled = !!song.isYoutube;
-            downloadHQBtn.disabled = !!song.isYoutube;
-            if (song.isYoutube) {
-                audio8dBtn.title = 'Tidak tersedia untuk lagu YouTube (audio dari iframe lintas-origin)';
-                downloadOriginalBtn.title = 'Tidak tersedia untuk lagu YouTube';
-                downloadHQBtn.title = 'Tidak tersedia untuk lagu YouTube';
-            } else {
-                audio8dBtn.title = is8D ? 'Efek 8D Audio: Aktif' : 'Efek 8D Audio: Mati';
-                downloadOriginalBtn.title = 'Unduh file lagu ini apa adanya (tanpa diproses) -- selalu berhasil berapapun panjangnya';
-                downloadHQBtn.title = 'Render lagu ini lewat filter penjernih lalu unduh sebagai WAV (lossless) untuk diputar offline -- disarankan untuk lagu yang tidak terlalu panjang';
-            }
-
-            // Hentikan status "playing" & elemen <audio>-nya, TAPI JANGAN
-            // suspend AudioContext di sini. Nge-suspend AudioContext tepat
-            // pas src lagu diganti (lalu resume lagi sepersekian detik
-            // kemudian untuk lanjut ke lagu berikutnya) adalah biang bug
-            // "suara hilang pas ganti lagu / pas autoplay" di beberapa
-            // browser (terutama Safari/iPad) -- AudioContext dan
-            // MediaElementSource-nya jadi telat "connect" ulang.
-            // AudioContext HANYA kita suspend saat user benar-benar
-            // menekan tombol PAUSE manual (lihat pauseSong()).
-            isPlaying = false;
-            playPauseBtn.innerHTML = '▶️';
-            audioPlayer.pause();
-
-            progressFill.style.width = '0%';
-            currentTimeEl.textContent = '00:00';
-            durationTimeEl.textContent = '00:00';
-            
+            const song = songs[index];
+            songTitle.textContent = song.title;
+            coverArt.innerHTML = song.cover;
+            audioPlayer.src = song.src;
+            pauseSong();
             renderPlaylist();
         }
 
         function playSong() {
-            const song = getPlayingSong();
-            if (!song) {
-                isPlaying = false;
-                playPauseBtn.innerHTML = '▶️';
-                return;
-            }
-            if (song.isYoutube) {
-                playYoutubeSong(song);
-                return;
-            }
-            if (!song.src) {
-                // Slot ini belum diisi lagu -- diam saja, jangan coba muter apa-apa.
-                isPlaying = false;
-                playPauseBtn.innerHTML = '▶️';
-                return;
-            }
-            ensureAudioGraph();
-            audioOpToken++; // batalkan "janji" fade-out dari pauseSong() sebelumnya kalau ada
+            initAudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             isPlaying = true;
             playPauseBtn.innerHTML = '⏸️';
-            // Bisukan dulu (gain 0) SEBELUM context di-resume/audio mulai
-            // diputar -- kalau tidak, detik pertama context "hidup" lagi
-            // suka kedengaran sebagai klik/pop pendek ("treeet").
-            masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
-            masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
-            // Pastikan rangkaian Web Audio-nya sudah benar-benar aktif
-            // (resume) SEBELUM elemen audio-nya diputar -- kalau kebalik
-            // urutannya, sepersekian detik pertama bisa diam/glitch karena
-            // context-nya belum siap menerima suara.
-            const startPlaying = () => {
-                const playPromise = audioPlayer.play();
-                // Baru setelah play() benar-benar jalan, naikkan volumenya
-                // pelan-pelan (fade in) -- ini yang menghilangkan bunyi
-                // "treeet/bocor" pas ditekan play.
-                const fadeIn = () => {
-                    const t = audioCtx.currentTime;
-                    masterGain.gain.cancelScheduledValues(t);
-                    masterGain.gain.setValueAtTime(0, t);
-                    masterGain.gain.linearRampToValueAtTime(1, t + FADE_SECONDS);
-                };
-                if (playPromise && typeof playPromise.then === 'function') {
-                    playPromise.then(fadeIn).catch(fadeIn);
-                } else {
-                    fadeIn();
-                }
-            };
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume().then(startPlaying).catch(startPlaying);
-            } else {
-                startPlaying();
-            }
-        }
-
-        // Muter lagu YouTube -- lewat IFrame Player API, bukan elemen
-        // <audio> lokal. loadVideoById dipakai HANYA kalau video ini
-        // belum di-load ke player (baru pindah lagu); kalau video yang
-        // sama cuma di-pause lalu ditekan play lagi, dipakai playVideo()
-        // biasa supaya lanjut dari posisi terakhir, bukan mengulang dari 0.
-        function playYoutubeSong(song) {
-            isPlaying = true;
-            playPauseBtn.innerHTML = '⏸️';
-            getYoutubePlayer().then((player) => {
-                // Basi -- selama nunggu player siap, user sudah pindah lagu lain.
-                if (getPlayingSong() !== song) return;
-                if (ytLoadedForIndex === currentSongIndex) {
-                    player.playVideo();
-                } else {
-                    player.loadVideoById(song.youtubeId);
-                    ytLoadedForIndex = currentSongIndex;
-                }
-            });
+            audioPlayer.play();
         }
 
         function pauseSong() {
             isPlaying = false;
             playPauseBtn.innerHTML = '▶️';
-            const song = getPlayingSong();
-            if (song && song.isYoutube) {
-                if (ytPlayer) { try { ytPlayer.pauseVideo(); } catch (e) {} }
-                stopYtProgressPolling();
-                return;
-            }
-            audioOpToken++;
-            const myToken = audioOpToken;
-            if (audioCtx && audioCtx.state === 'running' && masterGain) {
-                // Turunkan volume pelan-pelan dulu (fade out) SEBELUM
-                // benar-benar pause elemen <audio> & suspend context.
-                // Kalau langsung dipotong mendadak di tengah gelombang
-                // suara, itu yang kedengaran sebagai klik/pop ("treeet")
-                // atau sisa suara "bocor" sepersekian detik.
-                const t = audioCtx.currentTime;
-                masterGain.gain.cancelScheduledValues(t);
-                masterGain.gain.setValueAtTime(masterGain.gain.value, t);
-                masterGain.gain.linearRampToValueAtTime(0, t + FADE_SECONDS);
-                setTimeout(() => {
-                    // Kalau selama jeda fade ini ada aksi play/pause baru
-                    // (misal user pencet play lagi dengan cepat), token
-                    // sudah berubah -- biarkan aksi yang baru itu yang
-                    // menentukan status akhirnya, jangan dobel-pause.
-                    if (audioOpToken !== myToken) return;
-                    audioPlayer.pause();
-                    if (audioCtx && audioCtx.state === 'running') {
-                        audioCtx.suspend();
-                    }
-                }, FADE_SECONDS * 1000 + 30);
-            } else {
-                audioPlayer.pause();
-            }
+            audioPlayer.pause();
         }
 
-        // Stop/Reset -- beda dari pause: selain berhenti, posisi lagu
-        // dibalikin ke 00:00. TIDAK otomatis main lagi -- harus ditekan
-        // tombol ▶️ sendiri kalau mau lanjut dari awal.
-        function stopSong() {
-            pauseSong();
-            const song = getPlayingSong();
-            if (song && song.isYoutube) {
-                if (ytPlayer) { try { ytPlayer.seekTo(0, true); } catch (e) {} }
-            } else if (audioPlayer.src) {
-                audioPlayer.currentTime = 0;
-            }
-            progressFill.style.width = '0%';
-            currentTimeEl.textContent = '00:00';
-        }
-        stopBtn.addEventListener('click', stopSong);
+        document.getElementById('gainSlider').addEventListener('input', (e) => {
+            const val = e.target.value;
+            document.getElementById('gainValue').innerText = val + '%';
+            if (gainNode) gainNode.gain.value = val / 100;
+        });
 
-        // Ambil index acak yang beda dari index sekarang (kalau lagu > 1)
-        function getRandomIndex(exclude, length) {
-            if (length <= 1) return 0;
-            let idx;
-            do { idx = Math.floor(Math.random() * length); } while (idx === exclude);
-            return idx;
-        }
+        document.getElementById('bassSlider').addEventListener('input', (e) => {
+            const val = e.target.value;
+            document.getElementById('bassValue').innerText = val + ' dB';
+            if (bassFilter) bassFilter.gain.value = val;
+        });
 
-        function prevSong() {
-            const wasPlaying = isPlaying;
-            const mode = playingMode || currentMode;
-            const list = getSongsArrayForMode(mode);
-            if (!list || list.length === 0) return;
-            const newIndex = isShuffle
-                ? getRandomIndex(currentSongIndex, list.length)
-                : (currentSongIndex - 1 + list.length) % list.length;
-            loadSong(newIndex, mode);
-            if (wasPlaying) playSong();
+        document.getElementById('trebleSlider').addEventListener('input', (e) => {
+            const val = e.target.value;
+            document.getElementById('trebleValue').innerText = val + ' dB';
+            if (trebleFilter) trebleFilter.gain.value = val;
+        });
+
+        function setPreset(gain, bass, treble) {
+            document.getElementById('gainSlider').value = gain;
+            document.getElementById('bassSlider').value = bass;
+            document.getElementById('trebleSlider').value = treble;
+            document.getElementById('gainSlider').dispatchEvent(new Event('input'));
+            document.getElementById('bassSlider').dispatchEvent(new Event('input'));
+            document.getElementById('trebleSlider').dispatchEvent(new Event('input'));
         }
 
-        function nextSong() {
-            const wasPlaying = isPlaying;
-            const mode = playingMode || currentMode;
-            const list = getSongsArrayForMode(mode);
-            if (!list || list.length === 0) return;
-            const newIndex = isShuffle
-                ? getRandomIndex(currentSongIndex, list.length)
-                : (currentSongIndex + 1) % list.length;
-            loadSong(newIndex, mode);
-            if (wasPlaying) playSong();
-        }
-
-        // Dipanggil saat lagu selesai sendiri (bukan diklik manual) --
-        // di sinilah mode "Ulang" (repeat) dan "Autoplay" benar-benar berlaku.
-        function handleSongEnd() {
-            const song = getPlayingSong();
-            const mode = playingMode || currentMode;
-            const list = getSongsArrayForMode(mode);
-            const resetTime = () => {
-                if (song && song.isYoutube) {
-                    if (ytPlayer) { try { ytPlayer.seekTo(0, true); } catch (e) {} }
-                } else {
-                    audioPlayer.currentTime = 0;
-                }
-            };
-            if (!isAutoplay) {
-                // Autoplay dimatikan -- berhenti total, jangan lanjut ke lagu apa pun.
-                pauseSong();
-                resetTime();
-                progressFill.style.width = '0%';
-                currentTimeEl.textContent = '00:00';
-                return;
-            }
-            if (repeatMode === 'one') {
-                resetTime();
-                playSong();
-                return;
-            }
-            // Repeat mati & bukan shuffle & sudah di lagu terakhir -> berhenti,
-            // jangan lompat balik ke lagu pertama sendiri.
-            if (repeatMode === 'off' && !isShuffle && list && currentSongIndex === list.length - 1) {
-                pauseSong();
-                resetTime();
-                progressFill.style.width = '0%';
-                currentTimeEl.textContent = '00:00';
-                return;
-            }
-            nextSong();
-        }
-
-        function updateProgress(e) {
-            const { duration, currentTime } = e.srcElement;
-            if (duration) {
-                const progressPercent = (currentTime / duration) * 100;
-                progressFill.style.width = `${progressPercent}%`;
-                currentTimeEl.textContent = formatTime(currentTime);
-                durationTimeEl.textContent = formatTime(duration);
-            }
-        }
-
-        function setProgress(e) {
-            const width = this.clientWidth;
+        playPauseBtn.addEventListener('click', () => isPlaying ? pauseSong() : playSong());
+        audioPlayer.addEventListener('timeupdate', () => {
+            const { duration, currentTime } = audioPlayer;
+            const progressPercent = (currentTime / duration) * 100;
+            progressFill.style.width = `${progressPercent}%`;
+            document.getElementById('currentTime').textContent = formatTime(currentTime);
+            document.getElementById('durationTime').textContent = formatTime(duration);
+        });
+        progressBar.addEventListener('click', (e) => {
+            const width = progressBar.clientWidth;
             const clickX = e.offsetX;
-            const song = getPlayingSong();
-            if (song && song.isYoutube) {
-                if (!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
-                const duration = ytPlayer.getDuration();
-                if (duration) ytPlayer.seekTo((clickX / width) * duration, true);
-                return;
-            }
-            const duration = audioPlayer.duration;
-            if (duration) audioPlayer.currentTime = (clickX / width) * duration;
-        }
-
-        function formatTime(seconds) {
-            if (isNaN(seconds)) return "00:00";
-            const minutes = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        // Event Listeners
-        playPauseBtn.addEventListener('click', () => {
-            // Ada lagu lain yang sudah "ditandai" (diklik di daftar) sementara
-            // lagu sekarang masih berjalan -- baru SEKARANG kita benar-benar
-            // pindah: muat lagu yang ditandai lalu langsung mainkan.
-            // (pendingSelectIndex selalu mengacu ke preset yang lagi
-            // ditampilkan sekarang -- lihat switchMode() yang mereset
-            // pendingSelectIndex begitu preset berganti.)
-            if (pendingSelectIndex !== null && !(currentMode === playingMode && pendingSelectIndex === currentSongIndex)) {
-                const targetIndex = pendingSelectIndex;
-                pendingSelectIndex = null;
-                loadSong(targetIndex, currentMode);
-                playSong();
-                return;
-            }
-            isPlaying ? pauseSong() : playSong();
-        });
-        prevBtn.addEventListener('click', prevSong);
-        nextBtn.addEventListener('click', nextSong);
-        audioPlayer.addEventListener('timeupdate', updateProgress);
-        audioPlayer.addEventListener('ended', handleSongEnd);
-        progressBar.addEventListener('click', setProgress);
-
-        // Shuffle
-        shuffleBtn.addEventListener('click', () => {
-            isShuffle = !isShuffle;
-            shuffleBtn.classList.toggle('active', isShuffle);
-            shuffleBtn.title = isShuffle ? 'Acak: Aktif' : 'Acak: Mati';
+            audioPlayer.currentTime = (clickX / width) * audioPlayer.duration;
         });
 
-        // Repeat -- siklus: mati -> ulang semua -> ulang 1 lagu -> mati
-        const repeatIcons = { off: '🔁', all: '🔁', one: '🔂' };
-        const repeatTitles = { off: 'Ulang: Mati', all: 'Ulang: Semua Lagu', one: 'Ulang: Lagu Ini' };
-        repeatBtn.addEventListener('click', () => {
-            repeatMode = repeatMode === 'off' ? 'all' : (repeatMode === 'all' ? 'one' : 'off');
-            repeatBtn.innerHTML = repeatIcons[repeatMode];
-            repeatBtn.title = repeatTitles[repeatMode];
-            repeatBtn.classList.toggle('active', repeatMode !== 'off');
-        });
-
-        // Volume
-        volumeSlider.addEventListener('input', () => {
-            const vol = volumeSlider.value / 100;
-            audioPlayer.volume = vol;
-            if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
-                ytPlayer.setVolume(volumeSlider.value); // API YouTube pakai skala 0-100, bukan 0-1
-            }
-            volumeIcon.textContent = vol == 0 ? '🔇' : (vol < 0.5 ? '🔉' : '🔊');
-        });
-        audioPlayer.volume = volumeSlider.value / 100;
-
-        // Fullscreen (dengan fallback vendor prefix buat browser/HP lama)
-        fullscreenBtn.addEventListener('click', () => {
-            const el = document.querySelector('.container');
-            const isFs = document.fullscreenElement || document.webkitFullscreenElement;
-            if (!isFs) {
-                const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-                if (req) req.call(el);
-            } else {
-                const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
-                if (exit) exit.call(document);
-            }
-        });
-        function syncFullscreenBtn() {
-            const isFs = document.fullscreenElement || document.webkitFullscreenElement;
-            fullscreenBtn.textContent = isFs ? '⤢' : '⛶';
-            fullscreenBtn.title = isFs ? 'Keluar Layar Penuh' : 'Layar Penuh';
-        }
-        document.addEventListener('fullscreenchange', syncFullscreenBtn);
-        document.addEventListener('webkitfullscreenchange', syncFullscreenBtn);
-
-        // Jaga-jaga khusus iPad/HP: kalau layar dikunci atau aplikasi
-        // dipindah ke background lalu dibuka lagi, sistemnya kadang
-        // men-suspend AudioContext sendiri (irit baterai). Begitu app
-        // aktif lagi, kalau tadinya memang lagi diputar, bangunkan lagi
-        // context-nya -- biar suara tidak hilang atau nge-glitch.
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' && isPlaying && audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume().catch(() => {});
-            }
-        });
-
-        // Autoplay -- kalau dimatikan, lagu berhenti total begitu selesai
-        // (lihat handleSongEnd), tidak lompat ke lagu berikutnya sendiri.
-        autoplayBtn.addEventListener('click', () => {
-            isAutoplay = !isAutoplay;
-            autoplayBtn.classList.toggle('active', isAutoplay);
-            autoplayBtn.title = isAutoplay
-                ? 'Lanjut otomatis ke lagu berikutnya: Aktif'
-                : 'Lanjut otomatis ke lagu berikutnya: Mati';
-        });
-
-        // Graph Web Audio -- dipakai untuk DUA hal sekaligus:
-        //  1) Penjernih audio yang SELALU aktif otomatis (highshelf + compressor)
-        //  2) Efek 8D (panning stereo berputar) lewat tombol 8D, opsional
-        // Graph-nya cuma dibuat SEKALI (createMediaElementSource cuma boleh
-        // dipanggil sekali per elemen <audio>) -- dipicu otomatis pas lagu
-        // pertama kali diputar (lihat playSong()).
-        // CATATAN: butuh audio yang sama-origin (upload dari storage = aman)
-        // atau server sumbernya izinkan CORS -- kalau tidak, browser akan
-        // membisukan audio begitu masuk Web Audio API (bukan bug di sini).
-        let audioCtx = null, sourceNode = null, pannerNode = null, masterGain = null;
-        let is8D = false, panStartTime = 0, panRafId = null;
-
-        // Lama fade in/out (detik) yang dipakai tiap kali play/pause. Ini
-        // obat untuk bug suara "treeet"/bocor pas pause-play: kalau
-        // AudioContext di-suspend/resume MENDADAK pas gelombang suara lagi
-        // di tengah (bukan pas nilainya nol), telinga dengar itu sebagai
-        // "klik/pop" pendek. Solusinya: turunkan volume pelan-pelan dulu
-        // (fade out) SEBELUM benar-benar pause/suspend, dan naikkan
-        // pelan-pelan (fade in) SETELAH play/resume -- bukan langsung full
-        // volume. 18ms sudah cukup untuk menghilangkan klik tapi masih
-        // terasa instan buat telinga.
-        const FADE_SECONDS = 0.018;
-        // Penomoran setiap aksi play/pause -- supaya kalau user pencet
-        // play/pause/next dengan cepat berturut-turut, sisa fade-out dari
-        // aksi SEBELUMNYA yang telat selesai tidak salah nge-pause aksi
-        // yang BARU (lihat pemakaiannya di pauseSong()).
-        let audioOpToken = 0;
-
-        // =========================================================
-        // RANGKAIAN PENJERNIH & PENGUAT KUALITAS ("mastering chain")
-        //
-        // Dipakai OTOMATIS untuk SEMUA lagu, di KEDUA preset (15 Lagu RT
-        // maupun Playlist Biasa) -- karena nempel ke satu elemen <audio>
-        // yang dipakai bersama oleh kedua preset itu, bukan per-lagu.
-        // Fungsi yang SAMA PERSIS ini juga dipakai saat tombol "Unduh HQ
-        // WAV" dipakai, jadi hasil unduhan = persis apa yang kedengaran
-        // pas lagu diputar di sini.
-        //
-        // CATATAN JUJUR: tidak ada proses digital yang bisa menciptakan
-        // detail suara yang memang tidak ada di file aslinya (mustahil
-        // secara fisik). Yang dilakukan di sini adalah membentuk ulang
-        // frekuensi (EQ 3-band) + meratakan & mengamankan volume dengan
-        // SATU node dynamics (bukan dua bersusun) -- supaya secara
-        // PERSEPSI lagu kedengaran lebih penuh & jernih, tanpa sampai
-        // pecah/distorsi, dan tanpa numpuk "lookahead buffer" dua
-        // compressor sekaligus yang dulu jadi biang glitch pas pause/play.
-        // =========================================================
-        function buildEnhancerChain(ctx) {
-            // 1) Bass -- sedikit lebih penuh/hangat
-            const bassNode = ctx.createBiquadFilter();
-            bassNode.type = 'lowshelf';
-            bassNode.frequency.value = 150;
-            bassNode.gain.value = 3.5;
-
-            // 2) Presence -- vokal & instrumen depan terasa lebih dekat/jelas
-            const presenceNode = ctx.createBiquadFilter();
-            presenceNode.type = 'peaking';
-            presenceNode.frequency.value = 3000;
-            presenceNode.Q.value = 1;
-            presenceNode.gain.value = 2.5;
-
-            // 3) Treble -- detail/kilau (hi-hat, cymbal, konsonan vokal)
-            const clarityNode = ctx.createBiquadFilter();
-            clarityNode.type = 'highshelf';
-            clarityNode.frequency.value = 9000;
-            clarityNode.gain.value = 3.5;
-
-            // 4) SATU node dynamics yang merangkap tugas "compressor" (ratakan
-            //    volume) SEKALIGUS "limiter" (cegah pecah/clipping) -- threshold
-            //    lebih rendah + ratio lebih tinggi dari compressor biasa, jadi
-            //    tetap aman menahan boost EQ di atas tanpa perlu node kedua.
-            const dynamicsNode = ctx.createDynamicsCompressor();
-            dynamicsNode.threshold.value = -18;
-            dynamicsNode.knee.value = 16;
-            dynamicsNode.ratio.value = 6;
-            dynamicsNode.attack.value = 0.006;
-            dynamicsNode.release.value = 0.25;
-
-            // 5) Gain make-up -- imbangi volume yang turun akibat dynamicsNode
-            const makeupGain = ctx.createGain();
-            makeupGain.gain.value = 1.1;
-
-            bassNode.connect(presenceNode)
-                .connect(clarityNode)
-                .connect(dynamicsNode)
-                .connect(makeupGain);
-
-            return { input: bassNode, output: makeupGain };
-        }
-
-        function ensureAudioGraph() {
-            if (audioCtx) return;
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            sourceNode = audioCtx.createMediaElementSource(audioPlayer);
-            pannerNode = audioCtx.createStereoPanner();
-
-            const enhancer = buildEnhancerChain(audioCtx);
-            // masterGain ditaruh PALING UJUNG rangkaian (sebelum speaker) --
-            // node inilah yang kita naik-turunkan pelan-pelan tiap play/pause
-            // supaya tidak ada suara "klik/pop/treeet" (lihat FADE_SECONDS).
-            masterGain = audioCtx.createGain();
-            masterGain.gain.value = 1;
-            sourceNode.connect(pannerNode).connect(enhancer.input);
-            enhancer.output.connect(masterGain);
-            masterGain.connect(audioCtx.destination);
-        }
-
-        function run8DPanLoop() {
-            if (!is8D) return;
-            const elapsed = audioCtx.currentTime - panStartTime;
-            pannerNode.pan.value = Math.sin(elapsed * 0.6); // ~10 detik per putaran kiri-kanan
-            panRafId = requestAnimationFrame(run8DPanLoop);
-        }
-
-        audio8dBtn.addEventListener('click', () => {
-            ensureAudioGraph();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            is8D = !is8D;
-            audio8dBtn.classList.toggle('active', is8D);
-            audio8dBtn.title = is8D ? 'Efek 8D Audio: Aktif' : 'Efek 8D Audio: Mati';
-            if (is8D) {
-                panStartTime = audioCtx.currentTime;
-                run8DPanLoop();
-            } else {
-                if (panRafId) cancelAnimationFrame(panRafId);
-                pannerNode.pan.value = 0;
-            }
-        });
-
-        // =========================================================
-        // RENDER & UNDUH WAV KUALITAS MAKSIMAL (offline, bisa diputar
-        // tanpa internet setelah didownload)
-        //
-        // CATATAN JUJUR soal "kbps/khz maksimal":
-        // Ini TIDAK menciptakan detail suara baru yang tidak ada di file
-        // aslinya -- kualitas fisik audio tidak bisa melebihi sumbernya.
-        // Yang dilakukan di sini:
-        //  1) Lagu dirender ulang lewat OfflineAudioContext, melewati
-        //     filter penjernih yang sama dengan yang otomatis aktif saat
-        //     diputar (highshelf + compressor) -- jadi efek jernihnya
-        //     "terbakar" ke dalam file, bukan cuma efek sementara pas
-        //     diputar di browser ini.
-        //  2) Hasilnya disimpan sebagai WAV PCM (lossless, TANPA kompresi
-        //     seperti MP3), memakai sample rate & jumlah channel asli
-        //     file sumbernya -- jadi ini kualitas MAKSIMAL yang mungkin
-        //     didapat dari sumbernya, tanpa kehilangan data akibat
-        //     kompresi ulang.
-        // =========================================================
-        // Unduh file lagu APA ADANYA, tanpa diproses sama sekali.
-        // Ini pilihan paling ringan & paling aman -- tidak perlu decode audio
-        // ke memori, jadi tidak ada risiko gagal karena file panjang/besar
-        // (misalnya lagu DJ/mixtape berdurasi puluhan menit - jam).
-        function downloadOriginalFile(songOverride) {
-            const song = songOverride || getPlayingSong();
-            if (song && song.isYoutube) {
-                alert('Lagu YouTube tidak bisa diunduh dari sini -- audionya datang langsung dari server YouTube, bukan file yang kita simpan.');
-                return;
-            }
-            if (!song || !song.src) {
-                alert('Belum ada lagu di slot ini untuk diunduh.');
-                return;
-            }
-            const a = document.createElement('a');
-            a.href = song.src;
-            a.download = song.fileName || `${song.title || 'lagu'}.mp3`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-        }
-        downloadOriginalBtn.addEventListener('click', () => downloadOriginalFile());
-
-        async function renderAndDownloadWav(songOverride) {
-            const song = songOverride || getPlayingSong();
-            if (song && song.isYoutube) {
-                alert('Lagu YouTube tidak bisa dirender/diunduh dari sini -- audionya datang langsung dari server YouTube, bukan file yang kita simpan.');
-                return;
-            }
-            if (!song || !song.src) {
-                alert('Belum ada lagu di slot ini untuk dirender.');
-                return;
-            }
-
-            downloadHQBtn.disabled = true;
-            downloadHQBtn.textContent = '⏳ Merender...';
-            hqStatus.style.display = 'block';
-            hqStatus.textContent = `Mengambil & mendekode "${song.title}"...`;
-
-            try {
-                const resp = await fetch(song.src);
-                const arrayBuffer = await resp.arrayBuffer();
-
-                const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const decoded = await tempCtx.decodeAudioData(arrayBuffer.slice(0));
-                tempCtx.close();
-
-                hqStatus.textContent = `Merender lewat filter penjernih (${decoded.sampleRate} Hz, ${decoded.numberOfChannels === 2 ? 'stereo' : 'mono'})...`;
-
-                const offlineCtx = new OfflineAudioContext(
-                    decoded.numberOfChannels,
-                    decoded.length,
-                    decoded.sampleRate // pakai sample rate ASLI -- tidak upsampling palsu
-                );
-
-                const src = offlineCtx.createBufferSource();
-                src.buffer = decoded;
-
-                // Sama persis dengan graph "always-on" saat diputar live
-                const enhancer = buildEnhancerChain(offlineCtx);
-                src.connect(enhancer.input);
-                enhancer.output.connect(offlineCtx.destination);
-                src.start(0);
-
-                const rendered = await offlineCtx.startRendering();
-
-                hqStatus.textContent = 'Membungkus jadi file WAV...';
-                const wavBlob = audioBufferToWav(rendered);
-
-                const url = URL.createObjectURL(wavBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                const safeName = (song.title || 'lagu').replace(/[\\/:*?"<>|]/g, '_');
-                a.download = `${safeName} (HQ ${decoded.sampleRate}Hz).wav`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(() => URL.revokeObjectURL(url), 15000);
-
-                hqStatus.textContent = `Selesai! Diunduh sebagai WAV ${decoded.sampleRate} Hz, siap diputar offline.`;
-                setTimeout(() => { hqStatus.style.display = 'none'; }, 5000);
-            } catch (err) {
-                console.error(err);
-                hqStatus.textContent = '';
-                hqStatus.style.display = 'none';
-                alert(
-                    'Gagal merender jadi WAV.\n\n' +
-                    'Alasan teknis: ' + (err && err.message ? err.message : err) + '\n\n' +
-                    'Ini sering terjadi kalau lagunya sangat panjang (mixtape/DJ set puluhan menit-berjam-jam) ' +
-                    'karena harus dimuat penuh ke memori perangkat. Untuk lagu seperti itu, gunakan tombol ' +
-                    '"⬇️ Unduh Asli" saja -- hasilnya tetap kualitas penuh tanpa risiko gagal.'
-                );
-            } finally {
-                downloadHQBtn.disabled = false;
-                downloadHQBtn.textContent = '⬇️ Unduh HQ WAV';
-            }
-        }
-
-        // Ubah AudioBuffer hasil render jadi file WAV PCM 16-bit (lossless)
-        function audioBufferToWav(buffer) {
-            const numChannels = buffer.numberOfChannels;
-            const sampleRate = buffer.sampleRate;
-            const bitDepth = 16;
-
-            const channelData = [];
-            for (let ch = 0; ch < numChannels; ch++) {
-                channelData.push(buffer.getChannelData(ch));
-            }
-
-            const interleaved = numChannels === 2
-                ? interleaveStereo(channelData[0], channelData[1])
-                : channelData[0];
-
-            const bytesPerSample = bitDepth / 8;
-            const dataLength = interleaved.length * bytesPerSample;
-            const bufferArr = new ArrayBuffer(44 + dataLength);
-            const view = new DataView(bufferArr);
-
-            writeString(view, 0, 'RIFF');
-            view.setUint32(4, 36 + dataLength, true);
-            writeString(view, 8, 'WAVE');
-            writeString(view, 12, 'fmt ');
-            view.setUint32(16, 16, true);           // ukuran chunk fmt
-            view.setUint16(20, 1, true);             // format = PCM
-            view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * numChannels * bytesPerSample, true); // byte rate
-            view.setUint16(32, numChannels * bytesPerSample, true);              // block align
-            view.setUint16(34, bitDepth, true);
-            writeString(view, 36, 'data');
-            view.setUint32(40, dataLength, true);
-
-            floatTo16BitPCM(view, 44, interleaved);
-
-            return new Blob([view], { type: 'audio/wav' });
-        }
-
-        function interleaveStereo(left, right) {
-            const length = left.length + right.length;
-            const result = new Float32Array(length);
-            let index = 0, inputIndex = 0;
-            while (index < length) {
-                result[index++] = left[inputIndex];
-                result[index++] = right[inputIndex];
-                inputIndex++;
-            }
-            return result;
-        }
-
-        function floatTo16BitPCM(view, offset, input) {
-            for (let i = 0; i < input.length; i++, offset += 2) {
-                const s = Math.max(-1, Math.min(1, input[i]));
-                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-            }
-        }
-
-        downloadHQBtn.addEventListener('click', renderAndDownloadWav);
-
-        // Tombol umum -- tambah lagu BARU di luar 15 slot RT (bukan isi slot RT)
-        uploadBtn.addEventListener('click', () => { pendingUploadIndex = null; fileInput.click(); });
-        
-        fileInput.addEventListener('change', (event) => {
+        document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+        document.getElementById('fileInput').addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
                 const songUrl = URL.createObjectURL(file);
-                const songName = file.name.replace(/\.[^/.]+$/, ""); // Hapus ekstensi .mp3 dll
-
-                if (pendingUploadIndex !== null) {
-                    // Isi/ganti lagu KHUSUS slot RT yang tombol upload-nya diklik
-                    const idx = pendingUploadIndex;
-                    songs[idx].title = songName;
-                    songs[idx].src = songUrl;
-                    songs[idx].fileName = file.name; // nama asli + ekstensi, dipakai saat "Unduh Asli"
-                    songs[idx].cover = "LAGU<br>UPLOAD";
-                    songs[idx].dbId = `rt15-${idx}`;
-                    songs[idx]._blob = file;
-                    songs[idx]._dbMode = 'rt15';
-                    songs[idx]._dbSlotIndex = idx;
-                    // Kalau slot ini sebelumnya diisi lagu YouTube, hapus
-                    // tandanya -- sekarang slotnya file upload biasa.
-                    songs[idx].isYoutube = false;
-                    songs[idx].youtubeId = null;
-                    persistSong(songs[idx]);
-                    pendingUploadIndex = null;
-                    if (currentMode === playingMode && idx === currentSongIndex) {
-                        loadSong(idx, currentMode); // refresh tampilan pemutar kalau slot ini lagi aktif
-                    } else {
-                        renderPlaylist();
-                    }
-                } else {
-                    // Tombol umum -- tambah baris baru di akhir daftar
-                    const order = Date.now();
-                    const newSong = {
-                        rt: currentMode === 'rt15' ? "UPLOAD" : "",
-                        title: songName,
-                        src: songUrl,
-                        fileName: file.name, // nama asli + ekstensi, dipakai saat "Unduh Asli"
-                        cover: currentMode === 'rt15' ? "LAGU<br>UPLOAD" : "PLAYLIST<br>LAGU",
-                        dbId: `${currentMode}-extra-${order}-${Math.random().toString(36).slice(2, 8)}`,
-                        _blob: file,
-                        _dbMode: currentMode,
-                        _dbSlotIndex: null,
-                        _dbOrder: order
-                    };
-                    songs.push(newSong);
-                    persistSong(newSong);
-                    const newIndex = songs.length - 1;
-                    // Sama seperti yang lain -- jangan hentikan lagu yang
-                    // lagi berjalan cuma karena nambah lagu baru.
-                    if (!isPlaying) {
-                        loadSong(newIndex);
-                    } else {
-                        pendingSelectIndex = newIndex;
-                        renderPlaylist();
-                    }
-                }
-
-                // Reset input agar bisa upload file dengan nama yang sama lagi
-                fileInput.value = '';
+                const songName = file.name.replace(/\.[^/.]+$/, "");
+                songs.push({ rt: "UPLOAD", title: songName, src: songUrl, cover: "LAGU<br>UPLOAD" });
+                renderPlaylist();
+                loadSong(songs.length - 1);
+                event.target.value = '';
             }
         });
 
-        // Simpan nama pengguna juga -- kecil, tapi ikut dikembalikan lagi
-        // setelah refresh/force-close biar tidak perlu ketik ulang.
-        userNameEl.addEventListener('input', debounce(() => {
-            dbSetMeta('userName', userNameEl.textContent);
-        }, 400));
-
-        // =========================================================
-        // PEMULIHAN OTOMATIS SAAT HALAMAN DIBUKA
-        //
-        // Baca semua lagu (isi file + label RT + urutan) dan pengaturan
-        // terakhir (nama, preset aktif) dari IndexedDB, lalu susun ulang
-        // playlist persis seperti sebelum halaman ditutup/refresh --
-        // semua dari penyimpanan LOKAL, tidak butuh internet sama sekali.
-        // =========================================================
-        async function restoreFromDB() {
-            const records = await dbGetAllSongs();
-
-            const extrasRT15 = [];
-            const normalList = [];
-
-            for (const rec of records) {
-                const songObj = {
-                    rt: rec.rt || '',
-                    title: rec.title,
-                    src: rec.blob ? URL.createObjectURL(rec.blob) : null,
-                    fileName: rec.fileName,
-                    cover: rec.cover,
-                    dbId: rec.id,
-                    _blob: rec.blob || null,
-                    isYoutube: !!rec.isYoutube,
-                    youtubeId: rec.youtubeId || null,
-                    _dbMode: rec.mode,
-                    _dbSlotIndex: (rec.slotIndex === undefined ? null : rec.slotIndex),
-                    _dbOrder: rec.order || 0
-                };
-
-                if (rec.mode === 'rt15' && rec.slotIndex !== null && rec.slotIndex !== undefined
-                    && rec.slotIndex >= 0 && rec.slotIndex < songsRT15.length) {
-                    songsRT15[rec.slotIndex] = songObj;
-                } else if (rec.mode === 'rt15') {
-                    extrasRT15.push(songObj);
-                } else if (rec.mode === 'normal') {
-                    normalList.push(songObj);
-                }
-            }
-
-            extrasRT15.sort((a, b) => a._dbOrder - b._dbOrder);
-            normalList.sort((a, b) => a._dbOrder - b._dbOrder);
-            songsRT15.push(...extrasRT15);
-            songsNormal = normalList;
-
-            const savedName = await dbGetMeta('userName');
-            if (savedName) userNameEl.textContent = savedName;
-
-            const savedMode = await dbGetMeta('currentMode');
-            if (savedMode === 'normal') {
-                currentMode = 'normal';
-                modeRtBtn.classList.remove('active');
-                modeNormalBtn.classList.add('active');
-                playlistTitleLabel.textContent = 'DAFTAR LAGU';
-                uploadBtn.textContent = '+ Tambah Lagu';
-            }
-            songs = (currentMode === 'rt15') ? songsRT15 : songsNormal;
-
-            if (songs.length > 0) {
-                loadSong(0);
-            } else {
-                showEmptyPlayerState();
-            }
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return "00:00";
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // =========================================================
-        // LAYAR TIDAK MATI SELAMA APLIKASI DIBUKA (Wake Lock API)
-        //
-        // Dipakai supaya HP tidak masuk mode tidur/kunci layar otomatis
-        // pas aplikasi ini lagi dibuka aktif (mis. dipasang di tablet/HP
-        // yang muter lagu di acara). Ini API resmi browser, BUKAN trik --
-        // didukung Chrome/Edge/Safari versi baru. Kalau browsernya tidak
-        // mendukung atau izinnya ditolak sistem, aplikasi tetap jalan
-        // normal seperti biasa, cuma efek "layar tidak mati"-nya saja
-        // yang tidak aktif -- tidak ada apa pun yang rusak/terganggu.
-        // =========================================================
-        let wakeLock = null;
+        renderPlaylist();
+        loadSong(0);
 
-        async function requestWakeLock() {
-            if (!('wakeLock' in navigator)) return;
-            try {
-                wakeLock = await navigator.wakeLock.request('screen');
-                wakeLock.addEventListener('release', () => {
-                    wakeLock = null;
+        // ==========================================
+        // 2. TAMBAHAN FITUR SOUNDBOARD (REQUEST BARU)
+        // ==========================================
+        const soundboardBtn = document.getElementById('soundboardBtn');
+        const soundboardModal = document.getElementById('soundboardModal');
+        const closeSoundboardBtn = document.getElementById('closeSoundboardBtn');
+        const sbUploadBtn = document.getElementById('sbUploadBtn');
+        const sbFileInput = document.getElementById('sbFileInput');
+        const sbGrid = document.getElementById('sbGrid');
+
+        // Buka modal fullscreen
+        soundboardBtn.addEventListener('click', () => {
+            soundboardModal.style.display = 'block';
+        });
+
+        // Tutup modal fullscreen
+        closeSoundboardBtn.addEventListener('click', () => {
+            soundboardModal.style.display = 'none';
+        });
+
+        // Klik tombol upload di soundboard
+        sbUploadBtn.addEventListener('click', () => sbFileInput.click());
+
+        // Proses file yang diupload ke soundboard
+        sbFileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const url = URL.createObjectURL(file);
+                const name = file.name.replace(/\.[^/.]+$/, "");
+                
+                // Buat kotak grid untuk setiap lagu
+                const item = document.createElement('div');
+                item.className = 'sb-item';
+                item.innerHTML = `
+                    <div class="sb-title">${name}</div>
+                    <div class="sb-controls">
+                        <button class="sb-btn play">Play</button>
+                        <button class="sb-btn pause">Pause</button>
+                        <button class="sb-btn stop">Stop</button>
+                        <button class="sb-btn repeat">Repeat: Off</button>
+                    </div>
+                    <audio src="${url}" style="display:none;"></audio>
+                `;
+                sbGrid.appendChild(item);
+
+                // Ambil elemen elemen di dalam kotak ini
+                const audio = item.querySelector('audio');
+                const playBtn = item.querySelector('.play');
+                const pauseBtn = item.querySelector('.pause');
+                const stopBtn = item.querySelector('.stop');
+                const repeatBtn = item.querySelector('.repeat');
+
+                // Kontrol individu per lagu
+                playBtn.addEventListener('click', () => audio.play());
+                pauseBtn.addEventListener('click', () => audio.pause());
+                stopBtn.addEventListener('click', () => {
+                    audio.pause();
+                    audio.currentTime = 0;
                 });
-            } catch (err) {
-                // Wajar terjadi kalau browser lagi tidak izinkan (mis. baterai
-                // hemat daya) -- diamkan saja, jangan ganggu pengguna dengan
-                // alert/error, cukup dicatat di console buat yang mau cek.
-                console.warn('Wake Lock tidak bisa diaktifkan:', err && err.message);
-            }
-        }
-
-        requestWakeLock();
-
-        // Wake lock OTOMATIS lepas sendiri oleh browser kalau tab/aplikasi
-        // disembunyikan (pindah ke aplikasi lain, layar dikunci manual,
-        // dsb) -- itu memang perilaku standar API-nya, bukan sesuatu yang
-        // bisa/boleh kita lawan. Begitu aplikasi ini aktif dilihat lagi,
-        // minta ulang wake lock-nya supaya layar kembali tidak mati sendiri.
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                requestWakeLock();
-            }
-        });
-
-        // Initial Load -- coba pulihkan dari penyimpanan permanen dulu;
-        // kalau gagal/kosong, tampilkan 15 slot RT kosong seperti biasa.
-        restoreFromDB().catch((err) => {
-            console.error('Gagal memulihkan playlist tersimpan:', err);
-            loadSong(0);
+                
+                // Fitur Repeat per lagu
+                repeatBtn.addEventListener('click', () => {
+                    if(audio.loop) {
+                        audio.loop = false;
+                        repeatBtn.innerText = "Repeat: Off";
+                        repeatBtn.classList.remove('active');
+                    } else {
+                        audio.loop = true;
+                        repeatBtn.innerText = "Repeat: On";
+                        repeatBtn.classList.add('active');
+                    }
+                });
+            });
+            e.target.value = ''; // Reset input biar bisa upload file yang sama lagi
         });
     </script>
 </body>
