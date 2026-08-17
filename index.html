@@ -699,6 +699,24 @@
         .sb-tile-controls button:hover { transform: scale(1.15); }
         .sb-repeat-btn { opacity: 0.4; }
         .sb-repeat-btn.active { opacity: 1; color: var(--primary-red); }
+
+        /* Progres bar kecil per kotak -- biar kelihatan lagi di posisi
+           mana di dalam potongan itu, bukan di dalam file aslinya. */
+        .sb-tile-progress {
+            width: 100%;
+            height: 5px;
+            background: #eee;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+            cursor: pointer;
+        }
+        .sb-tile-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary-red);
+            transition: width 0.1s linear;
+        }
         .sb-tile-extra {
             display: flex;
             justify-content: space-between;
@@ -752,6 +770,59 @@
             box-sizing: border-box;
         }
         .sb-modal-duration { font-size: 0.78rem; color: #888; margin-top: 6px; }
+
+        /* Bar seret/klik untuk "menjelajah" file aslinya sebelum menentukan
+           potongan mulai & selesai -- klik di mana saja utk dengar dari
+           situ, area merah muda menunjukkan rentang yang akan dipotong. */
+        .sb-modal-progress-track {
+            position: relative;
+            height: 34px;
+            background: #eee;
+            border-radius: 6px;
+            margin-top: 10px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .sb-modal-progress-range {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 0%;
+            background: rgba(225,0,0,0.22);
+            border-left: 2px solid var(--primary-red);
+            border-right: 2px solid var(--primary-red);
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+        .sb-modal-progress-playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0%;
+            width: 2px;
+            background: #222;
+            pointer-events: none;
+        }
+        .sb-modal-mark-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .sb-modal-mark-actions button {
+            flex: 1;
+            font-size: 0.72rem;
+            padding: 7px 4px;
+            border-radius: 6px;
+            border: 1.5px solid #ddd;
+            background: var(--white);
+            cursor: pointer;
+            font-weight: bold;
+            color: #666;
+            min-width: 80px;
+        }
+        .sb-modal-mark-actions button:hover { border-color: var(--primary-red); color: var(--primary-red); }
         .sb-modal-actions {
             display: flex;
             gap: 8px;
@@ -915,12 +986,25 @@
                 <label for="sbModalTitleInput">Nama Clip</label>
                 <input type="text" id="sbModalTitleInput" placeholder="Nama clip">
                 <div class="sb-modal-duration" id="sbModalDurationLabel"></div>
+
+                <!-- Bar jelajah -- klik di mana saja untuk dengar dari titik
+                     itu (random), lalu tandai titik mulai/selesai potongan
+                     sambil dengarkan. Area merah muda = rentang yg dipotong. -->
+                <div class="sb-modal-progress-track" id="sbModalProgress" title="Klik untuk dengar dari titik ini">
+                    <div class="sb-modal-progress-range" id="sbModalRangeEl"></div>
+                    <div class="sb-modal-progress-playhead" id="sbModalPlayheadEl"></div>
+                </div>
+                <div class="sb-modal-mark-actions">
+                    <button type="button" id="sbModalPlayToggleBtn">▶️ Dengar</button>
+                    <button type="button" id="sbModalMarkStartBtn">🔴 Set Mulai</button>
+                    <button type="button" id="sbModalMarkEndBtn">🔴 Set Selesai</button>
+                </div>
+
                 <label for="sbModalStartInput">Mulai dari (mm:ss)</label>
                 <input type="text" id="sbModalStartInput" placeholder="0:00">
                 <label for="sbModalEndInput">Sampai (mm:ss)</label>
                 <input type="text" id="sbModalEndInput" placeholder="1:00">
                 <div class="sb-modal-actions">
-                    <button type="button" id="sbModalPreviewBtn">▶️ Coba Dengar</button>
                     <button type="button" id="sbModalCancelBtn">Batal</button>
                     <button type="button" id="sbModalConfirmBtn">+ Tambah</button>
                 </div>
@@ -2212,7 +2296,12 @@
         const sbModalStartInput = document.getElementById('sbModalStartInput');
         const sbModalEndInput = document.getElementById('sbModalEndInput');
         const sbModalDurationLabel = document.getElementById('sbModalDurationLabel');
-        const sbModalPreviewBtn = document.getElementById('sbModalPreviewBtn');
+        const sbModalProgress = document.getElementById('sbModalProgress');
+        const sbModalRangeEl = document.getElementById('sbModalRangeEl');
+        const sbModalPlayheadEl = document.getElementById('sbModalPlayheadEl');
+        const sbModalPlayToggleBtn = document.getElementById('sbModalPlayToggleBtn');
+        const sbModalMarkStartBtn = document.getElementById('sbModalMarkStartBtn');
+        const sbModalMarkEndBtn = document.getElementById('sbModalMarkEndBtn');
         const sbModalConfirmBtn = document.getElementById('sbModalConfirmBtn');
         const sbModalCancelBtn = document.getElementById('sbModalCancelBtn');
 
@@ -2268,8 +2357,28 @@
             sbModalStartInput.value = formatTime(start);
             sbModalEndInput.value = formatTime(end);
             sbModalDurationLabel.textContent = `Durasi asli file: ${formatTime(fileInfo.duration)}`;
+            sbModalPlayToggleBtn.textContent = '▶️ Dengar';
+            sbModalPlayheadEl.style.left = '0%';
+            updateModalRangeUI();
             soundboardModal.classList.add('open');
         }
+
+        // Gambar ulang area merah muda (rentang yang akan dipotong) di
+        // bar jelajah, berdasarkan isi input Mulai/Selesai saat ini.
+        function updateModalRangeUI() {
+            if (!sbPendingFile || !sbPendingFile.duration) return;
+            const duration = sbPendingFile.duration;
+            let start = parseTimeInput(sbModalStartInput.value, 0);
+            let end = parseTimeInput(sbModalEndInput.value, duration);
+            start = Math.max(0, Math.min(start, duration));
+            end = Math.max(start, Math.min(end, duration));
+            const startPct = duration ? (start / duration) * 100 : 0;
+            const endPct = duration ? (end / duration) * 100 : 100;
+            sbModalRangeEl.style.left = `${startPct}%`;
+            sbModalRangeEl.style.width = `${Math.max(0, endPct - startPct)}%`;
+        }
+        sbModalStartInput.addEventListener('change', updateModalRangeUI);
+        sbModalEndInput.addEventListener('change', updateModalRangeUI);
 
         // Terima format "mm:ss" atau cuma angka detik biasa.
         function parseTimeInput(str, fallback) {
@@ -2284,11 +2393,18 @@
             return isNaN(n) ? fallback : n;
         }
 
+        let sbRafId = null;
+
         function stopSbPreview() {
             if (sbPreviewAudio) {
                 sbPreviewAudio.pause();
                 sbPreviewAudio = null;
             }
+            if (sbRafId) {
+                cancelAnimationFrame(sbRafId);
+                sbRafId = null;
+            }
+            sbModalPlayToggleBtn.textContent = '▶️ Dengar';
         }
 
         sbModalCancelBtn.addEventListener('click', () => {
@@ -2297,27 +2413,63 @@
             sbPendingFile = null;
         });
 
-        sbModalPreviewBtn.addEventListener('click', () => {
+        function sbUpdatePlayhead() {
+            if (!sbPreviewAudio || !sbPendingFile || !sbPendingFile.duration) return;
+            const pct = (sbPreviewAudio.currentTime / sbPendingFile.duration) * 100;
+            sbModalPlayheadEl.style.left = `${Math.min(100, Math.max(0, pct))}%`;
+            if (!sbPreviewAudio.paused) {
+                sbRafId = requestAnimationFrame(sbUpdatePlayhead);
+            }
+        }
+
+        function ensureSbPreviewAudio() {
+            if (!sbPreviewAudio && sbPendingFile) {
+                sbPreviewAudio = new Audio(sbPendingFile.url);
+                sbPreviewAudio.addEventListener('play', () => {
+                    sbModalPlayToggleBtn.textContent = '⏸️ Jeda';
+                    sbUpdatePlayhead();
+                });
+                sbPreviewAudio.addEventListener('pause', () => {
+                    sbModalPlayToggleBtn.textContent = '▶️ Dengar';
+                });
+                sbPreviewAudio.addEventListener('ended', () => {
+                    sbModalPlayToggleBtn.textContent = '▶️ Dengar';
+                });
+            }
+            return sbPreviewAudio;
+        }
+
+        // Klik di mana saja di bar -- langsung dengar dari titik itu. Ini
+        // yang dipakai untuk "menjelajah acak" cari bagian yang mau dipotong,
+        // sebelum ditandai jadi Mulai/Selesai.
+        sbModalProgress.addEventListener('click', (e) => {
+            if (!sbPendingFile || !sbPendingFile.duration) return;
+            const rect = sbModalProgress.getBoundingClientRect();
+            const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+            const audio = ensureSbPreviewAudio();
+            audio.currentTime = pct * sbPendingFile.duration;
+            audio.play().catch(() => {});
+        });
+
+        sbModalPlayToggleBtn.addEventListener('click', () => {
             if (!sbPendingFile) return;
-            const duration = sbPendingFile.duration;
-            let start = parseTimeInput(sbModalStartInput.value, 0);
-            let end = parseTimeInput(sbModalEndInput.value, duration);
-            start = Math.max(0, Math.min(start, duration));
-            end = Math.max(start + 0.1, Math.min(end, duration));
-            stopSbPreview();
-            sbPreviewAudio = new Audio(sbPendingFile.url);
-            sbPreviewAudio.currentTime = start;
-            sbPreviewAudio.play().catch(() => {});
-            const myPreview = sbPreviewAudio;
-            const check = () => {
-                if (sbPreviewAudio !== myPreview) return; // preview baru sudah gantikan yang ini
-                if (myPreview.paused || myPreview.currentTime >= end) {
-                    myPreview.pause();
-                    return;
-                }
-                requestAnimationFrame(check);
-            };
-            requestAnimationFrame(check);
+            const audio = ensureSbPreviewAudio();
+            if (audio.paused) audio.play().catch(() => {});
+            else audio.pause();
+        });
+
+        // Tandai posisi dengar SEKARANG jadi titik Mulai/Selesai -- jadi
+        // alurnya: dengar-dengar dulu (klik di bar / tombol Dengar), begitu
+        // ketemu bagian yang pas, tekan salah satu tombol ini.
+        sbModalMarkStartBtn.addEventListener('click', () => {
+            if (!sbPreviewAudio) return;
+            sbModalStartInput.value = formatTime(sbPreviewAudio.currentTime);
+            updateModalRangeUI();
+        });
+        sbModalMarkEndBtn.addEventListener('click', () => {
+            if (!sbPreviewAudio) return;
+            sbModalEndInput.value = formatTime(sbPreviewAudio.currentTime);
+            updateModalRangeUI();
         });
 
         sbModalConfirmBtn.addEventListener('click', () => {
@@ -2358,6 +2510,7 @@
             };
             tile.audio.preload = 'auto';
             tile.audio.addEventListener('timeupdate', () => {
+                updateTileProgress(tile);
                 if (tile.audio.currentTime >= tile.end) {
                     if (tile.loop) {
                         tile.audio.currentTime = tile.start;
@@ -2367,6 +2520,7 @@
                         tile.audio.currentTime = tile.start;
                         tile.isPlaying = false;
                         updateTileUI(tile);
+                        updateTileProgress(tile);
                     }
                 }
             });
@@ -2374,6 +2528,7 @@
                 tile.isPlaying = false;
                 tile.audio.currentTime = tile.start;
                 updateTileUI(tile);
+                updateTileProgress(tile);
             });
             soundboardTiles.push(tile);
             renderSoundboardGrid();
@@ -2415,6 +2570,7 @@
             tile.audio.currentTime = tile.start;
             tile.isPlaying = false;
             updateTileUI(tile);
+            updateTileProgress(tile);
         }
 
         function sbToggleRepeat(tile) {
@@ -2431,6 +2587,19 @@
             if (repeatBtn) repeatBtn.classList.toggle('active', tile.loop);
         }
 
+        // Progres bar kecil di tiap kotak -- menunjukkan posisi sekarang
+        // RELATIF terhadap potongan (start–end), bukan terhadap file
+        // aslinya, supaya selalu mulai dari 0% tiap kali potongan diputar.
+        function updateTileProgress(tile) {
+            const el = document.getElementById(tile.id);
+            if (!el) return;
+            const fillEl = el.querySelector('.sb-tile-progress-fill');
+            if (!fillEl) return;
+            const range = tile.end - tile.start;
+            const pct = range > 0 ? ((tile.audio.currentTime - tile.start) / range) * 100 : 0;
+            fillEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+        }
+
         function renderSoundboardGrid() {
             soundboardGrid.querySelectorAll('.soundboard-tile').forEach(n => n.remove());
             soundboardTiles.forEach(tile => {
@@ -2445,6 +2614,9 @@
                         <button type="button" class="sb-stop-btn" title="Berhenti & kembali ke awal potongan">⏹️</button>
                         <button type="button" class="sb-repeat-btn" title="Ulang potongan ini">🔁</button>
                     </div>
+                    <div class="sb-tile-progress" title="Klik untuk pindah posisi di dalam potongan ini">
+                        <div class="sb-tile-progress-fill"></div>
+                    </div>
                     <div class="sb-tile-extra">
                         <button type="button" class="sb-cut-btn" title="Buat potongan lain dari file ini">✂️ Potongan lain</button>
                         <button type="button" class="sb-delete-btn" title="Hapus kotak ini">🗑️</button>
@@ -2455,6 +2627,14 @@
                 });
                 el.querySelector('.sb-stop-btn').addEventListener('click', () => sbStopTile(tile));
                 el.querySelector('.sb-repeat-btn').addEventListener('click', () => sbToggleRepeat(tile));
+                el.querySelector('.sb-tile-progress').addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    const rect = ev.currentTarget.getBoundingClientRect();
+                    const pct = Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width));
+                    const range = tile.end - tile.start;
+                    tile.audio.currentTime = tile.start + pct * range;
+                    updateTileProgress(tile);
+                });
                 el.querySelector('.sb-cut-btn').addEventListener('click', () => {
                     sbPendingFile = { url: tile.url, blob: tile.blob, fileName: tile.fileName, duration: tile.fullDuration, baseTitle: tile.title };
                     const gap = tile.end - tile.start || 60;
@@ -2466,6 +2646,7 @@
 
                 soundboardGrid.insertBefore(el, soundboardAddBtn);
                 updateTileUI(tile);
+                updateTileProgress(tile);
             });
         }
 
