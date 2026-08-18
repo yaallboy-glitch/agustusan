@@ -655,11 +655,14 @@
             box-sizing: border-box;
         }
         .sb-list-panel {
-            flex: 1 1 320px;
-            min-width: 260px;
-            max-height: 280px;
+            flex: 0 0 300px;
+            width: 300px;
+            min-width: 220px;
+            height: 190px;
+            max-height: 190px;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
+            padding: 12px;
         }
         .sb-list-panel-title, .soundboard-grid-label {
             font-size: 0.78rem;
@@ -679,12 +682,12 @@
         .sb-list-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 10px 10px;
-            border-radius: 8px;
+            gap: 8px;
+            padding: 7px 8px;
+            border-radius: 7px;
             border: 1px solid transparent;
             cursor: pointer;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
             position: relative;
             transition: background 0.15s, border-color 0.15s;
         }
@@ -694,18 +697,18 @@
             border-color: var(--primary-red);
         }
         .sb-list-num {
-            width: 20px;
+            width: 16px;
             text-align: center;
             font-weight: bold;
             color: rgba(255,255,255,0.5);
             flex-shrink: 0;
-            font-size: 0.9rem;
+            font-size: 0.76rem;
         }
         .sb-list-item.active .sb-list-num { color: var(--primary-red); }
         .sb-list-info { flex: 1; min-width: 0; }
         .sb-list-title {
             color: var(--white);
-            font-size: 0.92rem;
+            font-size: 0.76rem;
             font-weight: 600;
             white-space: nowrap;
             overflow: hidden;
@@ -713,7 +716,7 @@
         }
         .sb-list-duration {
             color: rgba(255,255,255,0.45);
-            font-size: 0.78rem;
+            font-size: 0.68rem;
             flex-shrink: 0;
         }
         .sb-list-menu-btn {
@@ -755,8 +758,13 @@
         .sb-list-menu button:hover { background: rgba(255,255,255,0.1); }
 
         .sb-player-panel {
-            flex: 1 1 340px;
-            min-width: 280px;
+            flex: 0 0 300px;
+            width: 300px;
+            min-width: 220px;
+            height: 190px;
+            max-height: 190px;
+            overflow: hidden;
+            padding: 12px 16px;
         }
         .sb-player-label {
             display: flex;
@@ -764,30 +772,32 @@
             gap: 6px;
             color: var(--primary-red);
             font-weight: bold;
-            font-size: 0.8rem;
+            font-size: 0.68rem;
             letter-spacing: 0.06em;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         .sb-player-title {
             color: var(--white);
-            font-size: 1.25rem;
+            font-size: 0.95rem;
             font-weight: bold;
-            margin: 0 0 4px;
-            overflow-wrap: break-word;
+            margin: 0 0 2px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
         }
         .sb-player-empty {
             color: rgba(255,255,255,0.4);
-            font-size: 0.9rem;
-            padding: 32px 0;
+            font-size: 0.8rem;
+            padding: 22px 0;
             text-align: center;
             font-style: italic;
         }
         .sb-player-progress-track {
             width: 100%;
-            height: 6px;
+            height: 5px;
             background: rgba(255,255,255,0.15);
             border-radius: 3px;
-            margin: 18px 0 8px;
+            margin: 10px 0 6px;
             cursor: pointer;
             position: relative;
         }
@@ -801,11 +811,11 @@
         .sb-player-progress-fill::after {
             content: '';
             position: absolute;
-            right: -6px;
+            right: -5px;
             top: 50%;
             transform: translateY(-50%);
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             background: var(--primary-red);
         }
@@ -813,23 +823,23 @@
             display: flex;
             justify-content: space-between;
             color: rgba(255,255,255,0.6);
-            font-size: 0.82rem;
-            margin-bottom: 20px;
+            font-size: 0.7rem;
+            margin-bottom: 10px;
         }
         .sb-player-controls {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 22px;
+            gap: 16px;
         }
         .sb-player-controls button {
             background: rgba(255,255,255,0.12);
             border: none;
             color: var(--white);
-            width: 44px;
-            height: 44px;
+            width: 34px;
+            height: 34px;
             border-radius: 50%;
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -838,15 +848,15 @@
         }
         .sb-player-controls button:hover { background: rgba(255,255,255,0.22); }
         .sb-player-controls .sb-player-play-btn {
-            width: 58px;
-            height: 58px;
+            width: 44px;
+            height: 44px;
             background: var(--primary-red);
-            font-size: 1.4rem;
+            font-size: 1.1rem;
         }
         .sb-player-controls .sb-player-play-btn:hover { background: var(--dark-red); }
         @media (max-width: 768px) {
             .sb-top { flex-direction: column; }
-            .sb-list-panel { max-height: 220px; }
+            .sb-list-panel, .sb-player-panel { width: 100%; }
         }
 
         .soundboard-grid {
@@ -3126,15 +3136,24 @@
             if (autoplay) sbTriggerTile(tile);
         }
 
+        // Daftar "Sekarang Diputar" (panel atas) khusus Backsound -- lagu
+        // yang diambil dari pemutar utama lewat pilihan "Backsound". Clip
+        // efek suara (upload lewat "Soundboard") TIDAK masuk daftar ini,
+        // supaya tidak ada tombol main/jeda-nya yang "nyasar" ke sini.
+        function getSbBacksoundTiles() {
+            return soundboardTiles.filter(t => t.external);
+        }
+
         function renderSbList() {
             const wrap = document.getElementById('sbListContainer');
             if (!wrap) return;
-            if (soundboardTiles.length === 0) {
-                wrap.innerHTML = '<div class="sb-list-empty">Belum ada suara. Tambah lewat tombol + di grid bawah.</div>';
+            const list = getSbBacksoundTiles();
+            if (list.length === 0) {
+                wrap.innerHTML = '<div class="sb-list-empty">Belum ada lagu Backsound. Tambah lewat tombol + di grid bawah &rarr; pilih "Backsound".</div>';
                 return;
             }
             wrap.innerHTML = '';
-            soundboardTiles.forEach((tile, idx) => {
+            list.forEach((tile, idx) => {
                 const row = document.createElement('div');
                 row.className = 'sb-list-item' + (tile.id === sbNowPlayingTileId ? ' active' : '');
                 row.innerHTML = `
@@ -3233,11 +3252,12 @@
                 sbStopTile(tile);
             });
             document.getElementById('sbPlayerPrevBtn').addEventListener('click', () => {
-                const idx = soundboardTiles.findIndex(t => t.id === tile.id);
+                const list = getSbBacksoundTiles();
+                const idx = list.findIndex(t => t.id === tile.id);
                 if (idx > 0) {
                     const wasPlaying = tile.isPlaying;
                     sbStopTile(tile);
-                    selectSbNowPlaying(soundboardTiles[idx - 1], wasPlaying);
+                    selectSbNowPlaying(list[idx - 1], wasPlaying);
                 }
             });
             updateTileProgress(tile);
@@ -3325,7 +3345,11 @@
 
         function renderSoundboardGrid() {
             soundboardGrid.querySelectorAll('.soundboard-tile').forEach(n => n.remove());
-            soundboardTiles.forEach(tile => {
+            // Grid bawah ini KHUSUS efek Soundboard (upload lewat pilihan
+            // "Soundboard") -- lagu Backsound tidak ikut ditaruh di sini,
+            // supaya tidak ada tombol main/jeda "Backsound" yang nyasar ke
+            // grid ini. Backsound sudah ditampilkan di panel "Daftar Suara".
+            soundboardTiles.filter(tile => !tile.external).forEach(tile => {
                 const el = document.createElement('div');
                 el.className = 'soundboard-tile';
                 el.id = tile.id;
