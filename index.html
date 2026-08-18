@@ -614,15 +614,44 @@
         }
         .soundboard-overlay.open { display: flex; }
 
+        /* Lapisan background kustom (foto/gambar) hasil upload user --
+           ditaruh paling belakang (z-index:0), dengan lapisan gelap tipis
+           di atasnya (::after) supaya teks & tombol tetap gampang dibaca
+           di atas foto apapun. Elemen konten lain (header, sb-top, grid)
+           diberi position:relative + z-index:1 supaya tampil di ATAS
+           lapisan ini. */
+        .soundboard-bg-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        .soundboard-bg-layer::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+        }
+
         .soundboard-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 10px;
             padding: 15px 20px;
             color: var(--white);
             font-weight: bold;
             font-size: 1.2rem;
             flex-shrink: 0;
+            position: relative;
+            z-index: 1;
+        }
+        .soundboard-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         .soundboard-header button {
             background: rgba(255,255,255,0.2);
@@ -646,6 +675,8 @@
             padding: 16px 20px 0;
             flex-shrink: 0;
             flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
         }
         .sb-list-panel {
             background: rgba(255,255,255,0.06);
@@ -897,6 +928,8 @@
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 14px;
             align-content: start;
+            position: relative;
+            z-index: 1;
         }
 
         .soundboard-grid-label-row {
@@ -904,6 +937,8 @@
             align-items: center;
             justify-content: space-between;
             padding: 4px 20px 0;
+            position: relative;
+            z-index: 1;
         }
         .soundboard-grid-label-row .soundboard-grid-label { padding: 0; margin-bottom: 0; }
         .soundboard-add-btn {
@@ -1371,9 +1406,13 @@
          diputar bersamaan (tidak saling menghentikan).
          ===================================================== -->
     <div class="soundboard-overlay" id="soundboardOverlay">
+        <div class="soundboard-bg-layer" id="soundboardBgLayer"></div>
         <div class="soundboard-header">
             <span>🎛️ Mode Soundboard</span>
-            <button type="button" id="soundboardCloseBtn" title="Tutup Mode Soundboard">✕</button>
+            <div class="soundboard-header-actions">
+                <button type="button" id="soundboardBgBtn" title="Ganti Background Soundboard">🖼️</button>
+                <button type="button" id="soundboardCloseBtn" title="Tutup Mode Soundboard">✕</button>
+            </div>
         </div>
         <div class="sb-top">
             <div class="sb-list-panel">
@@ -1468,8 +1507,44 @@
                 </div>
             </div>
         </div>
+
+        <!-- Ganti nama (kotak grid maupun daftar Backsound) -- pakai modal
+             sendiri, BUKAN prompt() bawaan browser. prompt()/confirm()
+             sering tidak muncul (atau langsung dianggap "Batal") saat
+             halaman sedang dalam mode layar penuh (fullscreen), terutama
+             di HP -- itulah sebabnya dulu Ganti Nama terasa "gagal" tanpa
+             ada kotak dialog yang tampil sama sekali. -->
+        <div class="soundboard-modal" id="sbRenameModal">
+            <div class="soundboard-modal-box">
+                <h3>✏️ Ganti Nama</h3>
+                <label for="sbRenameInput">Nama baru</label>
+                <input type="text" id="sbRenameInput" placeholder="Nama baru">
+                <div class="sb-modal-actions">
+                    <button type="button" id="sbRenameCancelBtn">Batal</button>
+                    <button type="button" id="sbRenameConfirmBtn">Simpan</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ganti/hapus foto background khusus Mode Soundboard. Gambar
+             disimpan permanen di IndexedDB (sama seperti lagu), jadi tetap
+             ada walau halaman di-refresh atau app ditutup paksa. -->
+        <div class="soundboard-modal" id="sbBgModal">
+            <div class="soundboard-modal-box">
+                <h3>🖼️ Background Soundboard</h3>
+                <p class="sb-source-hint">Pilih gambar dari HP/laptop untuk dijadikan latar belakang Mode Soundboard.</p>
+                <div class="sb-modal-actions" style="flex-direction: column; gap: 8px;">
+                    <button type="button" id="sbBgUploadBtn" style="width: 100%;">🖼️ Upload Gambar Baru</button>
+                    <button type="button" id="sbBgRemoveBtn" style="width: 100%; display: none;">🗑️ Hapus Background</button>
+                </div>
+                <div class="sb-modal-actions">
+                    <button type="button" id="sbBgCancelBtn">Tutup</button>
+                </div>
+            </div>
+        </div>
     </div>
     <input type="file" id="soundboardFileInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus,.wma" class="visually-hidden-file">
+    <input type="file" id="soundboardBgFileInput" accept="image/*" class="visually-hidden-file">
 
     <script>
         // 15 slot RT -- KOSONG (belum ada lagu), tinggal diisi lewat ikon
@@ -2772,6 +2847,17 @@
         const sbSongPickerModal = document.getElementById('sbSongPickerModal');
         const sbSongPickerList = document.getElementById('sbSongPickerList');
         const sbSongPickerCancelBtn = document.getElementById('sbSongPickerCancelBtn');
+        const sbRenameModal = document.getElementById('sbRenameModal');
+        const sbRenameInput = document.getElementById('sbRenameInput');
+        const sbRenameCancelBtn = document.getElementById('sbRenameCancelBtn');
+        const sbRenameConfirmBtn = document.getElementById('sbRenameConfirmBtn');
+        const soundboardBgBtn = document.getElementById('soundboardBgBtn');
+        const soundboardBgLayer = document.getElementById('soundboardBgLayer');
+        const soundboardBgFileInput = document.getElementById('soundboardBgFileInput');
+        const sbBgModal = document.getElementById('sbBgModal');
+        const sbBgUploadBtn = document.getElementById('sbBgUploadBtn');
+        const sbBgRemoveBtn = document.getElementById('sbBgRemoveBtn');
+        const sbBgCancelBtn = document.getElementById('sbBgCancelBtn');
 
         function openSoundboard() {
             soundboardOverlay.classList.add('open');
@@ -2792,13 +2878,114 @@
             }
         }
 
+        // ===== Ganti Nama (modal sendiri, gantikan prompt() bawaan) =====
+        // BUG LAMA: rename pakai window.prompt() -- di banyak browser (HP
+        // khususnya) kotak dialog prompt() TIDAK diizinkan muncul selagi
+        // halaman dalam mode layar penuh (fullscreen), yang mana Mode
+        // Soundboard SELALU aktifkan fullscreen saat dibuka. Hasilnya
+        // prompt() langsung balik kosong/batal tanpa kelihatan apa-apa
+        // sama sekali -- makanya rename terasa "tidak muncul dan gagal".
+        // Diganti modal HTML biasa di sini supaya selalu jalan, baik
+        // fullscreen maupun tidak.
+        let sbRenameTarget = null;
+        function openSbRenameModal(tile, onRenamed) {
+            sbRenameTarget = { tile, onRenamed };
+            sbRenameInput.value = tile.title;
+            sbRenameModal.classList.add('open');
+            setTimeout(() => { sbRenameInput.focus(); sbRenameInput.select(); }, 50);
+        }
+        function closeSbRenameModal() {
+            sbRenameModal.classList.remove('open');
+            sbRenameTarget = null;
+        }
+        sbRenameCancelBtn.addEventListener('click', closeSbRenameModal);
+        sbRenameConfirmBtn.addEventListener('click', () => {
+            if (!sbRenameTarget) return;
+            const newName = sbRenameInput.value.trim();
+            if (newName) {
+                sbRenameTarget.tile.title = newName;
+                if (sbRenameTarget.onRenamed) sbRenameTarget.onRenamed();
+            }
+            closeSbRenameModal();
+        });
+        sbRenameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); sbRenameConfirmBtn.click(); }
+        });
+
+        // ===== Background kustom Mode Soundboard =====
+        // Foto/gambar disimpan permanen di IndexedDB (meta key
+        // "soundboardBg"), sama seperti lagu, jadi tetap ada walau
+        // halaman di-refresh atau app ditutup paksa -- tidak perlu upload
+        // ulang tiap buka Mode Soundboard.
+        let soundboardBgObjectUrl = null;
+        function applySoundboardBgUrl(url) {
+            if (soundboardBgObjectUrl) { URL.revokeObjectURL(soundboardBgObjectUrl); soundboardBgObjectUrl = null; }
+            if (url) {
+                soundboardBgLayer.style.backgroundImage = `url("${url}")`;
+                soundboardOverlay.classList.add('has-bg');
+            } else {
+                soundboardBgLayer.style.backgroundImage = '';
+                soundboardOverlay.classList.remove('has-bg');
+            }
+        }
+        async function setSoundboardBackground(blob) {
+            const url = URL.createObjectURL(blob);
+            soundboardBgObjectUrl = url;
+            applySoundboardBgUrl(url);
+            sbBgRemoveBtn.style.display = 'block';
+            try { await dbSetMeta('soundboardBg', blob); } catch (err) { console.error('Gagal menyimpan background soundboard:', err); }
+        }
+        async function clearSoundboardBackground() {
+            applySoundboardBgUrl(null);
+            sbBgRemoveBtn.style.display = 'none';
+            try { await dbSetMeta('soundboardBg', null); } catch (err) { console.error('Gagal menghapus background soundboard:', err); }
+        }
+        async function restoreSoundboardBackground() {
+            try {
+                const saved = await dbGetMeta('soundboardBg');
+                if (saved) {
+                    const url = URL.createObjectURL(saved);
+                    soundboardBgObjectUrl = url;
+                    applySoundboardBgUrl(url);
+                    sbBgRemoveBtn.style.display = 'block';
+                }
+            } catch (err) {
+                console.error('Gagal memuat background soundboard:', err);
+            }
+        }
+        soundboardBgBtn.addEventListener('click', () => {
+            sbBgModal.classList.add('open');
+        });
+        sbBgCancelBtn.addEventListener('click', () => sbBgModal.classList.remove('open'));
+        sbBgUploadBtn.addEventListener('click', () => {
+            sbBgModal.classList.remove('open');
+            soundboardBgFileInput.click();
+        });
+        sbBgRemoveBtn.addEventListener('click', () => {
+            sbBgModal.classList.remove('open');
+            clearSoundboardBackground();
+        });
+        soundboardBgFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            soundboardBgFileInput.value = '';
+            if (!file) return;
+            if (!file.type.startsWith('image/')) { alert('File ini bukan gambar. Pilih file foto/gambar (jpg, png, dll).'); return; }
+            setSoundboardBackground(file);
+        });
+        restoreSoundboardBackground();
+
         soundboardToggleBtn.addEventListener('click', openSoundboard);
         soundboardCloseBtn.addEventListener('click', closeSoundboard);
         document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            // Modal kecil yang lagi terbuka ditutup duluan, tidak langsung
+            // keluar dari Mode Soundboard (biar tidak "ke-skip").
+            if (sbRenameModal.classList.contains('open')) { closeSbRenameModal(); return; }
+            if (sbBgModal.classList.contains('open')) { sbBgModal.classList.remove('open'); return; }
             const anySbModalOpen = soundboardModal.classList.contains('open') ||
                 sbSourceModal.classList.contains('open') ||
                 sbSongPickerModal.classList.contains('open');
-            if (e.key === 'Escape' && soundboardOverlay.classList.contains('open') && !anySbModalOpen) {
+            if (soundboardOverlay.classList.contains('open') && !anySbModalOpen) {
                 closeSoundboard();
             }
         });
@@ -3311,12 +3498,10 @@
                 menu.querySelector('[data-act="rename"]').addEventListener('click', (e) => {
                     e.stopPropagation();
                     menu.classList.remove('open');
-                    const newName = prompt('Nama baru untuk lagu ini:', tile.title);
-                    if (newName && newName.trim()) {
-                        tile.title = newName.trim();
+                    openSbRenameModal(tile, () => {
                         renderSbList();
                         if (sbNowPlayingTileId === tile.id) renderSbPlayerPanel();
-                    }
+                    });
                 });
                 menu.querySelector('[data-act="cut"]').addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -3544,11 +3729,7 @@
                 menu.querySelector('[data-act="rename"]').addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     menu.classList.remove('open');
-                    const newName = prompt('Nama baru untuk suara ini:', tile.title);
-                    if (newName && newName.trim()) {
-                        tile.title = newName.trim();
-                        renderSoundboardGrid();
-                    }
+                    openSbRenameModal(tile, () => renderSoundboardGrid());
                 });
                 menu.querySelector('[data-act="stop"]').addEventListener('click', (ev) => {
                     ev.stopPropagation();
