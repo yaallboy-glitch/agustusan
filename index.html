@@ -636,6 +636,219 @@
         }
         .soundboard-header button:hover { background: rgba(255,255,255,0.35); }
 
+        /* ===== Panel atas Mode Soundboard: "DAFTAR LAGU" (kiri) +
+           "SEKARANG DIPUTAR" (kanan) -- tampilan seperti pemutar musik
+           biasa, terpisah dari grid tombol cepat di bawahnya (yang
+           tetap ada, tidak dihapus). ===== */
+        .sb-top {
+            display: flex;
+            gap: 16px;
+            padding: 16px 20px 0;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        .sb-list-panel, .sb-player-panel {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        .sb-list-panel {
+            flex: 1 1 320px;
+            min-width: 260px;
+            max-height: 280px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .sb-list-panel-title, .soundboard-grid-label {
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            color: rgba(255,255,255,0.55);
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .soundboard-grid-label { padding: 4px 20px 0; }
+        .sb-list-empty {
+            color: rgba(255,255,255,0.4);
+            font-size: 0.85rem;
+            padding: 14px 4px;
+            text-align: center;
+            font-style: italic;
+        }
+        .sb-list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 10px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            margin-bottom: 6px;
+            position: relative;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .sb-list-item:hover { background: rgba(255,255,255,0.07); }
+        .sb-list-item.active {
+            background: rgba(225,0,0,0.16);
+            border-color: var(--primary-red);
+        }
+        .sb-list-num {
+            width: 20px;
+            text-align: center;
+            font-weight: bold;
+            color: rgba(255,255,255,0.5);
+            flex-shrink: 0;
+            font-size: 0.9rem;
+        }
+        .sb-list-item.active .sb-list-num { color: var(--primary-red); }
+        .sb-list-info { flex: 1; min-width: 0; }
+        .sb-list-title {
+            color: var(--white);
+            font-size: 0.92rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sb-list-duration {
+            color: rgba(255,255,255,0.45);
+            font-size: 0.78rem;
+            flex-shrink: 0;
+        }
+        .sb-list-menu-btn {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            font-size: 1.15rem;
+            cursor: pointer;
+            padding: 2px 6px;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .sb-list-menu-btn:hover { color: var(--white); }
+        .sb-list-menu {
+            display: none;
+            position: absolute;
+            right: 8px;
+            top: 100%;
+            background: #222;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 5;
+            min-width: 170px;
+            text-align: left;
+        }
+        .sb-list-menu.open { display: block; }
+        .sb-list-menu button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            color: var(--white);
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .sb-list-menu button:hover { background: rgba(255,255,255,0.1); }
+
+        .sb-player-panel {
+            flex: 1 1 340px;
+            min-width: 280px;
+        }
+        .sb-player-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--primary-red);
+            font-weight: bold;
+            font-size: 0.8rem;
+            letter-spacing: 0.06em;
+            margin-bottom: 12px;
+        }
+        .sb-player-title {
+            color: var(--white);
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin: 0 0 4px;
+            overflow-wrap: break-word;
+        }
+        .sb-player-empty {
+            color: rgba(255,255,255,0.4);
+            font-size: 0.9rem;
+            padding: 32px 0;
+            text-align: center;
+            font-style: italic;
+        }
+        .sb-player-progress-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 3px;
+            margin: 18px 0 8px;
+            cursor: pointer;
+            position: relative;
+        }
+        .sb-player-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary-red);
+            border-radius: 3px;
+            position: relative;
+        }
+        .sb-player-progress-fill::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary-red);
+        }
+        .sb-player-time-row {
+            display: flex;
+            justify-content: space-between;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.82rem;
+            margin-bottom: 20px;
+        }
+        .sb-player-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 22px;
+        }
+        .sb-player-controls button {
+            background: rgba(255,255,255,0.12);
+            border: none;
+            color: var(--white);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .sb-player-controls button:hover { background: rgba(255,255,255,0.22); }
+        .sb-player-controls .sb-player-play-btn {
+            width: 58px;
+            height: 58px;
+            background: var(--primary-red);
+            font-size: 1.4rem;
+        }
+        .sb-player-controls .sb-player-play-btn:hover { background: var(--dark-red); }
+        @media (max-width: 768px) {
+            .sb-top { flex-direction: column; }
+            .sb-list-panel { max-height: 220px; }
+        }
+
         .soundboard-grid {
             flex: 1;
             overflow-y: auto;
@@ -1085,6 +1298,20 @@
             <span>🎛️ Mode Soundboard</span>
             <button type="button" id="soundboardCloseBtn" title="Tutup Mode Soundboard">✕</button>
         </div>
+        <div class="sb-top">
+            <div class="sb-list-panel">
+                <div class="sb-list-panel-title">DAFTAR SUARA</div>
+                <div id="sbListContainer"></div>
+            </div>
+            <div class="sb-player-panel">
+                <div class="sb-player-label">🎵 SEKARANG DIPUTAR</div>
+                <div id="sbPlayerBody">
+                    <div class="sb-player-empty">Pilih suara dari daftar atau grid di bawah</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="soundboard-grid-label">SOUNDBOARD</div>
         <div class="soundboard-grid" id="soundboardGrid">
             <div class="soundboard-add-tile" id="soundboardAddBtn" title="Tambah suara baru">
                 <span>+</span>
@@ -2439,6 +2666,7 @@
         let soundboardIdCounter = 0;
         let sbPendingFile = null; // file yang lagi diatur potongannya di modal
         let sbPreviewAudio = null;
+        let sbNowPlayingTileId = null; // id kotak yang lagi tampil di panel "Sekarang Diputar"
 
         const soundboardToggleBtn = document.getElementById('soundboardToggleBtn');
         const soundboardOverlay = document.getElementById('soundboardOverlay');
@@ -2476,6 +2704,8 @@
             // Ukuran kotak baru bisa dihitung dengan benar setelah overlay
             // ini benar-benar terlihat (sebelumnya display:none -> lebar 0).
             activateSoundboardMarquees();
+            renderSbList();
+            renderSbPlayerPanel();
         }
 
         function closeSoundboard() {
@@ -2791,6 +3021,14 @@
                 audio: new Audio(data.url)
             };
             tile.audio.preload = 'auto';
+            // BUG FIX: audio baru dibuat selalu mulai di detik 0 secara
+            // default. Begitu metadata-nya siap, langsung arahkan ke titik
+            // gunting Mulai supaya kotak ini SEJAK AWAL sudah pas di posisi
+            // yang benar, bukan menunggu sampai baru pertama kali diputar.
+            tile.audio.addEventListener('loadedmetadata', () => {
+                try { tile.audio.currentTime = tile.start; } catch (e) {}
+                updateTileProgress(tile);
+            }, { once: true });
             // Clip pendek (1–20 detik) -- cukup main sampai selesai lalu
             // berhenti sendiri di titik akhir potongan, tidak diulang.
             tile.audio.addEventListener('timeupdate', () => {
@@ -2839,9 +3077,14 @@
 
         function updateTileUI(tile) {
             const el = document.getElementById(tile.id);
-            if (!el) return;
-            const playBtn = el.querySelector('.sb-play-btn');
-            if (playBtn) playBtn.textContent = tile.isPlaying ? '🔊' : '▶️';
+            if (el) {
+                const playBtn = el.querySelector('.sb-play-btn');
+                if (playBtn) playBtn.textContent = tile.isPlaying ? '🔊' : '▶️';
+            }
+            if (tile.id === sbNowPlayingTileId) {
+                const panelPlayBtn = document.getElementById('sbPlayerPlayBtn');
+                if (panelPlayBtn) panelPlayBtn.textContent = tile.isPlaying ? '⏸' : '▶️';
+            }
         }
 
         // Update lapisan transparan penuh kotak, bar tipis di bawah, DAN
@@ -2859,6 +3102,145 @@
             if (barEl) barEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
             const timeEl = el.querySelector('.sb-tile-time');
             if (timeEl) timeEl.textContent = `${formatTime(elapsed)} / ${formatTime(range)}`;
+
+            // Kalau kotak ini yang sedang tampil di panel "Sekarang
+            // Diputar", ikut update bar & angka detik di sana juga.
+            if (tile.id === sbNowPlayingTileId) {
+                const panelFill = document.getElementById('sbPlayerProgressFill');
+                if (panelFill) panelFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+                const panelCur = document.getElementById('sbPlayerCurTime');
+                if (panelCur) panelCur.textContent = formatTime(elapsed);
+            }
+        }
+
+        // ===== Panel "DAFTAR SUARA" (kiri) & "SEKARANG DIPUTAR" (kanan) =====
+
+        function getSbTileById(id) {
+            return soundboardTiles.find(t => t.id === id) || null;
+        }
+
+        function selectSbNowPlaying(tile, autoplay) {
+            sbNowPlayingTileId = tile.id;
+            renderSbList();
+            renderSbPlayerPanel();
+            if (autoplay) sbTriggerTile(tile);
+        }
+
+        function renderSbList() {
+            const wrap = document.getElementById('sbListContainer');
+            if (!wrap) return;
+            if (soundboardTiles.length === 0) {
+                wrap.innerHTML = '<div class="sb-list-empty">Belum ada suara. Tambah lewat tombol + di grid bawah.</div>';
+                return;
+            }
+            wrap.innerHTML = '';
+            soundboardTiles.forEach((tile, idx) => {
+                const row = document.createElement('div');
+                row.className = 'sb-list-item' + (tile.id === sbNowPlayingTileId ? ' active' : '');
+                row.innerHTML = `
+                    <span class="sb-list-num">${idx + 1}</span>
+                    <div class="sb-list-info">
+                        <div class="sb-list-title">${tile.title}</div>
+                    </div>
+                    <span class="sb-list-duration">${formatTime(tile.end - tile.start)}</span>
+                    <button type="button" class="sb-list-menu-btn" title="Opsi">⋮</button>
+                    <div class="sb-list-menu" id="sbListMenu-${tile.id}">
+                        <button type="button" data-act="cut">✂️ Potongan lain</button>
+                        <button type="button" data-act="delete">🗑️ Hapus</button>
+                    </div>
+                `;
+                row.addEventListener('click', (e) => {
+                    if (e.target.closest('.sb-list-menu-btn') || e.target.closest('.sb-list-menu')) return;
+                    selectSbNowPlaying(tile, true);
+                });
+                const menuBtn = row.querySelector('.sb-list-menu-btn');
+                const menu = row.querySelector('.sb-list-menu');
+                menuBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('.sb-list-menu.open').forEach(m => { if (m !== menu) m.classList.remove('open'); });
+                    menu.classList.toggle('open');
+                });
+                menu.querySelector('[data-act="cut"]').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    menu.classList.remove('open');
+                    sbPendingFile = { url: tile.url, blob: tile.blob, fileName: tile.fileName, duration: tile.fullDuration, baseTitle: tile.title, external: tile.external };
+                    const gap = tile.end - tile.start || 60;
+                    const nextStart = Math.min(tile.fullDuration, tile.end);
+                    const nextEnd = Math.min(tile.fullDuration, nextStart + gap);
+                    openSbModal(sbPendingFile, tile.title, nextStart, nextEnd);
+                });
+                menu.querySelector('[data-act="delete"]').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    menu.classList.remove('open');
+                    if (sbNowPlayingTileId === tile.id) sbNowPlayingTileId = null;
+                    removeSoundboardTile(tile.id);
+                });
+                wrap.appendChild(row);
+            });
+        }
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.sb-list-menu.open').forEach(m => m.classList.remove('open'));
+        });
+
+        function renderSbPlayerPanel() {
+            const body = document.getElementById('sbPlayerBody');
+            if (!body) return;
+            const tile = getSbTileById(sbNowPlayingTileId);
+            if (!tile) {
+                body.innerHTML = '<div class="sb-player-empty">Pilih suara dari daftar atau grid di bawah</div>';
+                return;
+            }
+            body.innerHTML = `
+                <h3 class="sb-player-title">${tile.title}</h3>
+                <div class="sb-player-progress-track" id="sbPlayerProgressTrack">
+                    <div class="sb-player-progress-fill" id="sbPlayerProgressFill"></div>
+                </div>
+                <div class="sb-player-time-row">
+                    <span id="sbPlayerCurTime">0:00</span>
+                    <span id="sbPlayerTotalTime">${formatTime(tile.end - tile.start)}</span>
+                </div>
+                <div class="sb-player-controls">
+                    <button type="button" id="sbPlayerPrevBtn" title="Suara sebelumnya di daftar">⏮</button>
+                    <button type="button" class="sb-player-play-btn" id="sbPlayerPlayBtn" title="Main/Jeda">${tile.isPlaying ? '⏸' : '▶️'}</button>
+                    <button type="button" id="sbPlayerStopBtn" title="Berhenti &amp; kembali ke titik Mulai">⏹</button>
+                </div>
+            `;
+            document.getElementById('sbPlayerProgressTrack').addEventListener('click', (e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+                const range = tile.end - tile.start;
+                tile.audio.currentTime = tile.start + pct * range;
+                updateTileProgress(tile);
+            });
+            document.getElementById('sbPlayerPlayBtn').addEventListener('click', () => {
+                if (tile.isPlaying) {
+                    tile.audio.pause();
+                    tile.isPlaying = false;
+                    updateTileUI(tile);
+                } else if (tile.audio.currentTime < tile.start || tile.audio.currentTime >= tile.end - 0.05) {
+                    // Di titik Mulai / sudah lewat Selesai -- pakai jalur yang
+                    // sama dengan trigger soundboard biasa (memastikan mulai
+                    // persis dari titik gunting, termasuk fix bug di atas).
+                    sbTriggerTile(tile);
+                } else {
+                    // Lagi di tengah (habis di-jeda) -- lanjutkan dari situ.
+                    tile.isPlaying = true;
+                    updateTileUI(tile);
+                    tile.audio.play().catch(() => {});
+                }
+            });
+            document.getElementById('sbPlayerStopBtn').addEventListener('click', () => {
+                sbStopTile(tile);
+            });
+            document.getElementById('sbPlayerPrevBtn').addEventListener('click', () => {
+                const idx = soundboardTiles.findIndex(t => t.id === tile.id);
+                if (idx > 0) {
+                    const wasPlaying = tile.isPlaying;
+                    sbStopTile(tile);
+                    selectSbNowPlaying(soundboardTiles[idx - 1], wasPlaying);
+                }
+            });
+            updateTileProgress(tile);
         }
 
         // Klik di mana saja di badan kotaknya = langsung bunyi dari titik
@@ -2869,18 +3251,43 @@
         // sini ditunggu dulu sampai posisinya benar-benar pindah (event
         // "seeked") baru diputar.
         function sbTriggerTile(tile) {
+            // Sambil main, kotak ini juga jadi "Sekarang Diputar" di panel
+            // atas (kalau belum).
+            if (sbNowPlayingTileId !== tile.id) {
+                sbNowPlayingTileId = tile.id;
+                renderSbList();
+            }
             tile.isPlaying = true;
             updateTileUI(tile);
+            renderSbPlayerPanel();
             const seekAndPlay = () => {
+                const doPlay = () => {
+                    tile.audio.play().catch(() => {});
+                    // BUG FIX: pada beberapa browser (terutama HP), currentTime
+                    // yang di-set SEBELUM data cukup ter-buffer bisa "tidak
+                    // nempel" -- kelihatan pindah sesaat tapi begitu play()
+                    // jalan malah balik ke 0 / titik lain, bukan ke titik
+                    // gunting Mulai. Makanya posisinya dicek ULANG persis saat
+                    // event "playing" benar-benar terpicu, dan dipaksa balik
+                    // ke titik Mulai kalau ternyata masih meleset.
+                    const onPlaying = () => {
+                        tile.audio.removeEventListener('playing', onPlaying);
+                        if (Math.abs(tile.audio.currentTime - tile.start) > 0.3) {
+                            tile.audio.currentTime = tile.start;
+                        }
+                        updateTileProgress(tile);
+                    };
+                    tile.audio.addEventListener('playing', onPlaying);
+                };
                 if (Math.abs(tile.audio.currentTime - tile.start) < 0.05) {
                     // Sudah pas di titik Mulai (mis. baru pertama kali
                     // diputar) -- tidak perlu tunggu event "seeked" yang
                     // tidak akan terpicu kalau posisinya tidak berubah.
-                    tile.audio.play().catch(() => {});
+                    doPlay();
                 } else {
                     const onSeeked = () => {
                         tile.audio.removeEventListener('seeked', onSeeked);
-                        tile.audio.play().catch(() => {});
+                        doPlay();
                     };
                     tile.audio.addEventListener('seeked', onSeeked);
                     tile.audio.currentTime = tile.start;
@@ -2974,6 +3381,13 @@
                 updateTileProgress(tile);
             });
             activateSoundboardMarquees();
+            renderSbList();
+            // Kalau kotak yang lagi tampil di panel "Sekarang Diputar" sudah
+            // dihapus dari grid, kosongkan panelnya.
+            if (sbNowPlayingTileId && !getSbTileById(sbNowPlayingTileId)) {
+                sbNowPlayingTileId = null;
+            }
+            renderSbPlayerPanel();
         }
 
 
