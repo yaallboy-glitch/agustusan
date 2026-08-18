@@ -614,44 +614,15 @@
         }
         .soundboard-overlay.open { display: flex; }
 
-        /* Lapisan background kustom (foto/gambar) hasil upload user --
-           ditaruh paling belakang (z-index:0), dengan lapisan gelap tipis
-           di atasnya (::after) supaya teks & tombol tetap gampang dibaca
-           di atas foto apapun. Elemen konten lain (header, sb-top, grid)
-           diberi position:relative + z-index:1 supaya tampil di ATAS
-           lapisan ini. */
-        .soundboard-bg-layer {
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-        }
-        .soundboard-bg-layer::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: rgba(0,0,0,0.55);
-        }
-
         .soundboard-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 10px;
             padding: 15px 20px;
             color: var(--white);
             font-weight: bold;
             font-size: 1.2rem;
             flex-shrink: 0;
-            position: relative;
-            z-index: 1;
-        }
-        .soundboard-header-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
         .soundboard-header button {
             background: rgba(255,255,255,0.2);
@@ -675,8 +646,6 @@
             padding: 16px 20px 0;
             flex-shrink: 0;
             flex-wrap: wrap;
-            position: relative;
-            z-index: 1;
         }
         .sb-list-panel {
             background: rgba(255,255,255,0.06);
@@ -928,8 +897,6 @@
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 14px;
             align-content: start;
-            position: relative;
-            z-index: 1;
         }
 
         .soundboard-grid-label-row {
@@ -937,8 +904,6 @@
             align-items: center;
             justify-content: space-between;
             padding: 4px 20px 0;
-            position: relative;
-            z-index: 1;
         }
         .soundboard-grid-label-row .soundboard-grid-label { padding: 0; margin-bottom: 0; }
         .soundboard-add-btn {
@@ -1406,13 +1371,9 @@
          diputar bersamaan (tidak saling menghentikan).
          ===================================================== -->
     <div class="soundboard-overlay" id="soundboardOverlay">
-        <div class="soundboard-bg-layer" id="soundboardBgLayer"></div>
         <div class="soundboard-header">
             <span>🎛️ Mode Soundboard</span>
-            <div class="soundboard-header-actions">
-                <button type="button" id="soundboardBgBtn" title="Ganti Background Soundboard">🖼️</button>
-                <button type="button" id="soundboardCloseBtn" title="Tutup Mode Soundboard">✕</button>
-            </div>
+            <button type="button" id="soundboardCloseBtn" title="Tutup Mode Soundboard">✕</button>
         </div>
         <div class="sb-top">
             <div class="sb-list-panel">
@@ -1445,7 +1406,7 @@
                     <button type="button" class="sb-source-btn" id="sbSourceBacksoundBtn">
                         <span class="sb-source-emoji">🎵</span>
                         <span class="sb-source-label">Backsound</span>
-                        <span class="sb-source-desc">Pakai lagu yang sudah ada / sudah diupload di pemutar utama</span>
+                        <span class="sb-source-desc">Pakai lagu yang sudah ada, atau upload file baru</span>
                     </button>
                     <button type="button" class="sb-source-btn" id="sbSourceUploadBtn">
                         <span class="sb-source-emoji">🎚️</span>
@@ -1459,10 +1420,18 @@
             </div>
         </div>
 
-        <!-- Daftar lagu yang sudah ada -- muncul kalau pilih "Backsound" -->
+        <!-- Daftar lagu yang sudah ada -- muncul kalau pilih "Backsound".
+             Tombol "Upload File Baru" di atas daftar supaya Backsound juga
+             bisa diisi dari file baru, tidak melulu harus lagu yang sudah
+             ada di pemutar utama. -->
         <div class="soundboard-modal" id="sbSongPickerModal">
             <div class="soundboard-modal-box">
                 <h3>🎵 Pilih Lagu</h3>
+                <button type="button" class="sb-source-btn" id="sbSongPickerUploadBtn" style="width: 100%; box-sizing: border-box; margin-top: 10px;">
+                    <span class="sb-source-emoji">⬆️</span>
+                    <span class="sb-source-label">Upload File Baru</span>
+                    <span class="sb-source-desc">Pilih file audio dari HP/laptop untuk dijadikan Backsound</span>
+                </button>
                 <div class="sb-song-picker-list" id="sbSongPickerList"></div>
                 <div class="sb-modal-actions">
                     <button type="button" id="sbSongPickerCancelBtn">Batal</button>
@@ -1525,26 +1494,9 @@
                 </div>
             </div>
         </div>
-
-        <!-- Ganti/hapus foto background khusus Mode Soundboard. Gambar
-             disimpan permanen di IndexedDB (sama seperti lagu), jadi tetap
-             ada walau halaman di-refresh atau app ditutup paksa. -->
-        <div class="soundboard-modal" id="sbBgModal">
-            <div class="soundboard-modal-box">
-                <h3>🖼️ Background Soundboard</h3>
-                <p class="sb-source-hint">Pilih gambar dari HP/laptop untuk dijadikan latar belakang Mode Soundboard.</p>
-                <div class="sb-modal-actions" style="flex-direction: column; gap: 8px;">
-                    <button type="button" id="sbBgUploadBtn" style="width: 100%;">🖼️ Upload Gambar Baru</button>
-                    <button type="button" id="sbBgRemoveBtn" style="width: 100%; display: none;">🗑️ Hapus Background</button>
-                </div>
-                <div class="sb-modal-actions">
-                    <button type="button" id="sbBgCancelBtn">Tutup</button>
-                </div>
-            </div>
-        </div>
     </div>
     <input type="file" id="soundboardFileInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus,.wma" class="visually-hidden-file">
-    <input type="file" id="soundboardBgFileInput" accept="image/*" class="visually-hidden-file">
+    <input type="file" id="soundboardBacksoundFileInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus,.wma" class="visually-hidden-file">
 
     <script>
         // 15 slot RT -- KOSONG (belum ada lagu), tinggal diisi lewat ikon
@@ -2847,17 +2799,12 @@
         const sbSongPickerModal = document.getElementById('sbSongPickerModal');
         const sbSongPickerList = document.getElementById('sbSongPickerList');
         const sbSongPickerCancelBtn = document.getElementById('sbSongPickerCancelBtn');
+        const sbSongPickerUploadBtn = document.getElementById('sbSongPickerUploadBtn');
+        const soundboardBacksoundFileInput = document.getElementById('soundboardBacksoundFileInput');
         const sbRenameModal = document.getElementById('sbRenameModal');
         const sbRenameInput = document.getElementById('sbRenameInput');
         const sbRenameCancelBtn = document.getElementById('sbRenameCancelBtn');
         const sbRenameConfirmBtn = document.getElementById('sbRenameConfirmBtn');
-        const soundboardBgBtn = document.getElementById('soundboardBgBtn');
-        const soundboardBgLayer = document.getElementById('soundboardBgLayer');
-        const soundboardBgFileInput = document.getElementById('soundboardBgFileInput');
-        const sbBgModal = document.getElementById('sbBgModal');
-        const sbBgUploadBtn = document.getElementById('sbBgUploadBtn');
-        const sbBgRemoveBtn = document.getElementById('sbBgRemoveBtn');
-        const sbBgCancelBtn = document.getElementById('sbBgCancelBtn');
 
         function openSoundboard() {
             soundboardOverlay.classList.add('open');
@@ -2912,68 +2859,6 @@
             if (e.key === 'Enter') { e.preventDefault(); sbRenameConfirmBtn.click(); }
         });
 
-        // ===== Background kustom Mode Soundboard =====
-        // Foto/gambar disimpan permanen di IndexedDB (meta key
-        // "soundboardBg"), sama seperti lagu, jadi tetap ada walau
-        // halaman di-refresh atau app ditutup paksa -- tidak perlu upload
-        // ulang tiap buka Mode Soundboard.
-        let soundboardBgObjectUrl = null;
-        function applySoundboardBgUrl(url) {
-            if (soundboardBgObjectUrl) { URL.revokeObjectURL(soundboardBgObjectUrl); soundboardBgObjectUrl = null; }
-            if (url) {
-                soundboardBgLayer.style.backgroundImage = `url("${url}")`;
-                soundboardOverlay.classList.add('has-bg');
-            } else {
-                soundboardBgLayer.style.backgroundImage = '';
-                soundboardOverlay.classList.remove('has-bg');
-            }
-        }
-        async function setSoundboardBackground(blob) {
-            const url = URL.createObjectURL(blob);
-            soundboardBgObjectUrl = url;
-            applySoundboardBgUrl(url);
-            sbBgRemoveBtn.style.display = 'block';
-            try { await dbSetMeta('soundboardBg', blob); } catch (err) { console.error('Gagal menyimpan background soundboard:', err); }
-        }
-        async function clearSoundboardBackground() {
-            applySoundboardBgUrl(null);
-            sbBgRemoveBtn.style.display = 'none';
-            try { await dbSetMeta('soundboardBg', null); } catch (err) { console.error('Gagal menghapus background soundboard:', err); }
-        }
-        async function restoreSoundboardBackground() {
-            try {
-                const saved = await dbGetMeta('soundboardBg');
-                if (saved) {
-                    const url = URL.createObjectURL(saved);
-                    soundboardBgObjectUrl = url;
-                    applySoundboardBgUrl(url);
-                    sbBgRemoveBtn.style.display = 'block';
-                }
-            } catch (err) {
-                console.error('Gagal memuat background soundboard:', err);
-            }
-        }
-        soundboardBgBtn.addEventListener('click', () => {
-            sbBgModal.classList.add('open');
-        });
-        sbBgCancelBtn.addEventListener('click', () => sbBgModal.classList.remove('open'));
-        sbBgUploadBtn.addEventListener('click', () => {
-            sbBgModal.classList.remove('open');
-            soundboardBgFileInput.click();
-        });
-        sbBgRemoveBtn.addEventListener('click', () => {
-            sbBgModal.classList.remove('open');
-            clearSoundboardBackground();
-        });
-        soundboardBgFileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            soundboardBgFileInput.value = '';
-            if (!file) return;
-            if (!file.type.startsWith('image/')) { alert('File ini bukan gambar. Pilih file foto/gambar (jpg, png, dll).'); return; }
-            setSoundboardBackground(file);
-        });
-        restoreSoundboardBackground();
-
         soundboardToggleBtn.addEventListener('click', openSoundboard);
         soundboardCloseBtn.addEventListener('click', closeSoundboard);
         document.addEventListener('keydown', (e) => {
@@ -2981,7 +2866,6 @@
             // Modal kecil yang lagi terbuka ditutup duluan, tidak langsung
             // keluar dari Mode Soundboard (biar tidak "ke-skip").
             if (sbRenameModal.classList.contains('open')) { closeSbRenameModal(); return; }
-            if (sbBgModal.classList.contains('open')) { sbBgModal.classList.remove('open'); return; }
             const anySbModalOpen = soundboardModal.classList.contains('open') ||
                 sbSourceModal.classList.contains('open') ||
                 sbSongPickerModal.classList.contains('open');
@@ -3021,7 +2905,7 @@
             const list = getExistingSongsForPicker();
             sbSongPickerList.innerHTML = '';
             if (list.length === 0) {
-                sbSongPickerList.innerHTML = '<div class="sb-song-picker-empty">Belum ada lagu yang diupload di pemutar utama. Upload dulu lagunya di sana, atau pilih "Soundboard" untuk upload langsung di sini.</div>';
+                sbSongPickerList.innerHTML = '<div class="sb-song-picker-empty">Belum ada lagu yang diupload di pemutar utama. Upload dulu lagunya di sana, atau tekan "Upload File Baru" di atas untuk upload langsung di sini.</div>';
             } else {
                 list.forEach(song => {
                     const item = document.createElement('div');
@@ -3038,6 +2922,37 @@
         }
         sbSongPickerCancelBtn.addEventListener('click', () => sbSongPickerModal.classList.remove('open'));
 
+        // "Upload File Baru" di dalam popup Backsound -- supaya Backsound
+        // TIDAK harus selalu ambil dari lagu yang sudah ada di pemutar
+        // utama, bisa juga upload file baru langsung dari sini, persis
+        // seperti upload biasa di grid Soundboard. Bedanya cuma ditandai
+        // "isBacksound: true" supaya nanti tampil di panel "Daftar
+        // Suara" / "Sekarang Diputar", bukan di grid kotak bawah.
+        sbSongPickerUploadBtn.addEventListener('click', () => {
+            sbSongPickerModal.classList.remove('open');
+            soundboardBacksoundFileInput.click();
+        });
+        soundboardBacksoundFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            soundboardBacksoundFileInput.value = '';
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            const baseTitle = file.name.replace(/\.[^/.]+$/, '');
+            const tempAudio = new Audio();
+            tempAudio.preload = 'metadata';
+            tempAudio.addEventListener('loadedmetadata', () => {
+                const dur = tempAudio.duration || 0;
+                const fileInfo = { url, blob: file, fileName: file.name, duration: dur, baseTitle, external: false, isBacksound: true };
+                sbPendingFile = fileInfo;
+                openSbModal(fileInfo, baseTitle, 0, Math.min(dur, 60));
+            });
+            tempAudio.addEventListener('error', () => {
+                URL.revokeObjectURL(url);
+                alert('Gagal membaca file audio ini. Coba file lain.');
+            });
+            tempAudio.src = url;
+        });
+
         // Lagu yang sudah ada dipakai langsung dari sumber yang sama
         // (song.src) -- BUKAN diupload ulang. Ditandai "external: true"
         // supaya nanti tidak ikut ke-revoke saat kotaknya dihapus (URL-nya
@@ -3047,7 +2962,7 @@
             tempAudio.preload = 'metadata';
             tempAudio.addEventListener('loadedmetadata', () => {
                 const dur = tempAudio.duration || 0;
-                const fileInfo = { url: song.src, blob: null, fileName: song.fileName || null, duration: dur, baseTitle: song.title, external: true };
+                const fileInfo = { url: song.src, blob: null, fileName: song.fileName || null, duration: dur, baseTitle: song.title, external: true, isBacksound: true };
                 sbPendingFile = fileInfo;
                 openSbModal(fileInfo, song.title, 0, Math.min(dur, 60));
             });
@@ -3301,7 +3216,8 @@
                 fullDuration: duration,
                 start,
                 end,
-                external: !!sbPendingFile.external
+                external: !!sbPendingFile.external,
+                isBacksound: !!sbPendingFile.isBacksound
             });
             stopSbPreview();
             soundboardModal.classList.remove('open');
@@ -3320,6 +3236,7 @@
                 end: data.end,
                 isPlaying: false,
                 external: !!data.external,
+                isBacksound: !!data.isBacksound,
                 repeat: false,
                 audio: new Audio(data.url)
             };
@@ -3456,7 +3373,7 @@
         // efek suara (upload lewat "Soundboard") TIDAK masuk daftar ini,
         // supaya tidak ada tombol main/jeda-nya yang "nyasar" ke sini.
         function getSbBacksoundTiles() {
-            return soundboardTiles.filter(t => t.external);
+            return soundboardTiles.filter(t => t.isBacksound);
         }
 
         function renderSbList() {
@@ -3506,7 +3423,7 @@
                 menu.querySelector('[data-act="cut"]').addEventListener('click', (e) => {
                     e.stopPropagation();
                     menu.classList.remove('open');
-                    sbPendingFile = { url: tile.url, blob: tile.blob, fileName: tile.fileName, duration: tile.fullDuration, baseTitle: tile.title, external: tile.external };
+                    sbPendingFile = { url: tile.url, blob: tile.blob, fileName: tile.fileName, duration: tile.fullDuration, baseTitle: tile.title, external: tile.external, isBacksound: tile.isBacksound };
                     const gap = tile.end - tile.start || 60;
                     const nextStart = Math.min(tile.fullDuration, tile.end);
                     const nextEnd = Math.min(tile.fullDuration, nextStart + gap);
@@ -3610,7 +3527,7 @@
             // Panel "Sekarang Diputar" KHUSUS lagu Backsound -- klik di
             // grid Soundboard (efek suara) main langsung tapi tidak
             // mengambil alih panel itu.
-            if (tile.external && sbNowPlayingTileId !== tile.id) {
+            if (tile.isBacksound && sbNowPlayingTileId !== tile.id) {
                 sbNowPlayingTileId = tile.id;
                 renderSbList();
                 renderSbPlayerPanel();
@@ -3686,7 +3603,7 @@
             // "Soundboard") -- lagu Backsound tidak ikut ditaruh di sini,
             // supaya tidak ada tombol main/jeda "Backsound" yang nyasar ke
             // grid ini. Backsound sudah ditampilkan di panel "Daftar Suara".
-            soundboardTiles.filter(tile => !tile.external).forEach((tile, idx) => {
+            soundboardTiles.filter(tile => !tile.isBacksound).forEach((tile, idx) => {
                 const el = document.createElement('div');
                 el.className = 'soundboard-tile';
                 el.id = tile.id;
@@ -3739,7 +3656,7 @@
                 menu.querySelector('[data-act="cut"]').addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     menu.classList.remove('open');
-                    sbPendingFile = { url: tile.url, blob: tile.blob, fileName: tile.fileName, duration: tile.fullDuration, baseTitle: tile.title, external: tile.external };
+                    sbPendingFile = { url: tile.url, blob: tile.blob, fileName: tile.fileName, duration: tile.fullDuration, baseTitle: tile.title, external: tile.external, isBacksound: tile.isBacksound };
                     const gap = tile.end - tile.start || 60;
                     const nextStart = Math.min(tile.fullDuration, tile.end);
                     const nextEnd = Math.min(tile.fullDuration, nextStart + gap);
