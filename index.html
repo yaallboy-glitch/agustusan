@@ -3015,6 +3015,105 @@
         // dipakai = baseVolume * sbMasterVolume (lihat applySbMasterVolume).
         let sbMasterVolume = 1;
 
+        // =========================================================
+        // FADE IN/OUT UNTUK LAGU BACKSOUND
+        //
+        // Khusus lagu Backsound (tile.isBacksound === true) -- BUKAN
+        // untuk kotak efek suara pendek di grid Soundboard, supaya
+        // efek pendek itu tetap bunyi instan seperti sebelumnya.
+        // Setiap tile Backsound dapat rangkaian Web Audio kecil sendiri
+        // (MediaElementSource -> volumeGainNode -> fadeGainNode ->
+        // speaker) yang dibuat sekali secara "lazy" (ensureBacksoundAudioGraph)
+        // begitu lagu itu pertama kali diputar. fadeGainNode inilah yang
+        // dinaik-turunkan pelan-pelan setiap kali main/jeda/berhenti/pindah
+        // lagu, supaya tidak ada suara terpotong mendadak (klik/pop).
+        // =========================================================
+        let sbAudioCtx = null;
+        const SB_FADE_SECONDS = 0.4;
+
+        function ensureBacksoundAudioGraph(tile) {
+            if (!tile.isBacksound || tile._fadeReady) return;
+            if (!sbAudioCtx) {
+                sbAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            const source = sbAudioCtx.createMediaElementSource(tile.audio);
+            const volumeGain = sbAudioCtx.createGain();
+            volumeGain.gain.value = Math.min(1, Math.max(0, (tile.baseVolume == null ? 1 : tile.baseVolume) * sbMasterVolume));
+            const fadeGain = sbAudioCtx.createGain();
+            fadeGain.gain.value = 0; // mulai senyap -- akan di-fade-in saat play pertama kali
+            source.connect(volumeGain).connect(fadeGain).connect(sbAudioCtx.destination);
+            tile.sourceNode = source;
+            tile.volumeGainNode = volumeGain;
+            tile.fadeGainNode = fadeGain;
+            tile._fadeReady = true;
+            // Begitu graph Web Audio menangkap elemen <audio>-nya, atribut
+            // .volume bawaan elemen itu tidak lagi bisa diandalkan di semua
+            // browser (sama seperti catatan di pemutar utama) -- jadi
+            // volume sepenuhnya dikendalikan lewat volumeGainNode di atas.
+            tile.audio.volume = 1;
+        }
+
+        // Naikkan volume (fadeGainNode) pelan-pelan dari 0 -> 1 SAMBIL
+        // memulai/melanjutkan audio.play() -- dipakai tiap kali lagu
+        // Backsound mulai main atau dilanjutkan dari jeda.
+        function sbFadeIn(tile) {
+            if (!tile.isBacksound) { tile.audio.play().catch(() => {}); return; }
+            ensureBacksoundAudioGraph(tile);
+            tile._fadeOpToken = (tile._fadeOpToken || 0) + 1;
+            const ctx = sbAudioCtx;
+            const doRamp = () => {
+                const t = ctx.currentTime;
+                tile.fadeGainNode.gain.cancelScheduledValues(t);
+                tile.fadeGainNode.gain.setValueAtTime(0, t);
+                tile.fadeGainNode.gain.linearRampToValueAtTime(1, t + SB_FADE_SECONDS);
+            };
+            const playPromise = tile.audio.play();
+            if (ctx.state === 'suspended') {
+                ctx.resume().then(doRamp).catch(doRamp);
+            } else if (playPromise && typeof playPromise.then === 'function') {
+                playPromise.then(doRamp).catch(doRamp);
+            } else {
+                doRamp();
+            }
+        }
+
+        // Turunkan volume (fadeGainNode) pelan-pelan dari posisi sekarang
+        // -> 0, BARU setelah itu jalankan onDone (biasanya audio.pause()
+        // dan/atau reset posisi) -- dipakai tiap kali lagu Backsound
+        // dijeda, dihentikan, atau diganti ke lagu Backsound yang lain.
+        function sbFadeOut(tile, onDone) {
+            if (!tile.isBacksound || !tile._fadeReady) {
+                if (onDone) onDone();
+                return;
+            }
+            const ctx = sbAudioCtx;
+            const t = ctx.currentTime;
+            tile.fadeGainNode.gain.cancelScheduledValues(t);
+            tile.fadeGainNode.gain.setValueAtTime(tile.fadeGainNode.gain.value, t);
+            tile.fadeGainNode.gain.linearRampToValueAtTime(0, t + SB_FADE_SECONDS);
+            tile._fadeOpToken = (tile._fadeOpToken || 0) + 1;
+            const myToken = tile._fadeOpToken;
+            setTimeout(() => {
+                // Kalau selama jeda fade ini ada aksi main/jeda/berhenti baru
+                // (token sudah berubah), biarkan aksi baru itu yang menentukan,
+                // jangan dobel-eksekusi onDone dari fade yang sudah usang.
+                if (tile._fadeOpToken !== myToken) return;
+                if (onDone) onDone();
+            }, SB_FADE_SECONDS * 1000 + 30);
+        }
+
+        // Pastikan cuma SATU lagu Backsound yang main pada satu waktu --
+        // begitu satu lagu Backsound mulai diputar, lagu Backsound lain
+        // yang masih berjalan di-fade-out & dihentikan dulu (persis
+        // seperti pemutar lagu biasa, bukan numpuk beberapa lagu sekaligus).
+        // Efek pendek di grid Soundboard TIDAK terpengaruh -- tetap bisa
+        // main bersamaan seperti sebelumnya.
+        function stopOtherBacksounds(exceptId) {
+            getSbBacksoundTiles().forEach((t) => {
+                if (t.id !== exceptId && t.isPlaying) sbStopTile(t);
+            });
+        }
+
         const soundboardToggleBtn = document.getElementById('soundboardToggleBtn');
         const soundboardOverlay = document.getElementById('soundboardOverlay');
         const soundboardCloseBtn = document.getElementById('soundboardCloseBtn');
@@ -3115,7 +3214,12 @@
         function applySbMasterVolume() {
             soundboardTiles.forEach((t) => {
                 const base = (t.baseVolume == null) ? 1 : t.baseVolume;
-                t.audio.volume = Math.min(1, Math.max(0, base * sbMasterVolume));
+                const vol = Math.min(1, Math.max(0, base * sbMasterVolume));
+                if (t.isBacksound && t.volumeGainNode) {
+                    t.volumeGainNode.gain.value = vol;
+                } else {
+                    t.audio.volume = vol;
+                }
             });
         }
         function updateSbMasterVolumeIcon() {
@@ -3584,11 +3688,20 @@
         }
 
         function sbStopTile(tile) {
-            tile.audio.pause();
-            tile.audio.currentTime = tile.start;
+            const shouldFade = tile.isBacksound && tile.isPlaying;
             tile.isPlaying = false;
             updateTileUI(tile);
-            updateTileProgress(tile);
+            if (shouldFade) {
+                sbFadeOut(tile, () => {
+                    tile.audio.pause();
+                    tile.audio.currentTime = tile.start;
+                    updateTileProgress(tile);
+                });
+            } else {
+                tile.audio.pause();
+                tile.audio.currentTime = tile.start;
+                updateTileProgress(tile);
+            }
         }
 
         function updateTileUI(tile) {
@@ -3761,7 +3874,12 @@
             });
             document.getElementById('sbPlayerVolumeSlider').addEventListener('input', (e) => {
                 tile.baseVolume = Math.min(1, Math.max(0, parseInt(e.target.value, 10) / 100));
-                tile.audio.volume = Math.min(1, Math.max(0, tile.baseVolume * sbMasterVolume));
+                const vol = Math.min(1, Math.max(0, tile.baseVolume * sbMasterVolume));
+                if (tile.isBacksound && tile.volumeGainNode) {
+                    tile.volumeGainNode.gain.value = vol;
+                } else {
+                    tile.audio.volume = vol;
+                }
             });
             document.getElementById('sbPlayerProgressTrack').addEventListener('click', (e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -3772,19 +3890,31 @@
             });
             document.getElementById('sbPlayerPlayBtn').addEventListener('click', () => {
                 if (tile.isPlaying) {
-                    tile.audio.pause();
+                    // Jeda -- fade out dulu SEBELUM benar-benar di-pause.
+                    // Posisi TETAP di titik jeda (beda dari Stop, yang balik
+                    // ke titik Mulai).
                     tile.isPlaying = false;
                     updateTileUI(tile);
+                    if (tile.isBacksound) {
+                        sbFadeOut(tile, () => tile.audio.pause());
+                    } else {
+                        tile.audio.pause();
+                    }
                 } else if (tile.audio.currentTime < tile.start || tile.audio.currentTime >= tile.end - 0.05) {
                     // Di titik Mulai / sudah lewat Selesai -- pakai jalur yang
                     // sama dengan trigger soundboard biasa (memastikan mulai
                     // persis dari titik gunting, termasuk fix bug di atas).
                     sbTriggerTile(tile);
                 } else {
-                    // Lagi di tengah (habis di-jeda) -- lanjutkan dari situ.
+                    // Lagi di tengah (habis di-jeda) -- lanjutkan dari situ
+                    // dengan fade-in pelan-pelan.
                     tile.isPlaying = true;
                     updateTileUI(tile);
-                    tile.audio.play().catch(() => {});
+                    if (tile.isBacksound) {
+                        sbFadeIn(tile);
+                    } else {
+                        tile.audio.play().catch(() => {});
+                    }
                 }
             });
             document.getElementById('sbPlayerStopBtn').addEventListener('click', () => {
@@ -3818,11 +3948,19 @@
                 renderSbList();
                 renderSbPlayerPanel();
             }
+            // Cuma satu lagu Backsound yang boleh main sekaligus -- lagu
+            // Backsound lain yang masih berjalan di-fade-out & dihentikan
+            // dulu (efek suara di grid Soundboard tidak terpengaruh).
+            if (tile.isBacksound) stopOtherBacksounds(tile.id);
             tile.isPlaying = true;
             updateTileUI(tile);
             const seekAndPlay = () => {
                 const doPlay = () => {
-                    tile.audio.play().catch(() => {});
+                    if (tile.isBacksound) {
+                        sbFadeIn(tile);
+                    } else {
+                        tile.audio.play().catch(() => {});
+                    }
                     // BUG FIX: pada beberapa browser (terutama HP), currentTime
                     // yang di-set SEBELUM data cukup ter-buffer bisa "tidak
                     // nempel" -- kelihatan pindah sesaat tapi begitu play()
