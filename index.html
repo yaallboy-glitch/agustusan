@@ -2981,6 +2981,48 @@
             return sbPreviewAudio;
         }
 
+        // BUG FIX: dipakai baik oleh klik di bar jelajah maupun tombol
+        // "▶️ Dengar" -- sebelumnya keduanya langsung
+        // "audio.currentTime = X; audio.play()" begitu audio preview BARU
+        // dibuat (ensureSbPreviewAudio). Karena audio itu belum sempat
+        // memuat metadata-nya, currentTime yang di-set sesaat sebelum
+        // play() sering "tidak nempel" -- hasilnya kedengaran mulai dari
+        // detik 0 file aslinya, bukan dari titik gunting Mulai yang sudah
+        // diatur. Sekarang seek-nya ditunggu sampai metadata siap, lalu
+        // dicek ULANG begitu event "playing" benar-benar jalan.
+        function sbPreviewSeekAndPlay(time) {
+            const audio = ensureSbPreviewAudio();
+            if (!audio) return;
+            const doSeekPlay = () => {
+                const target = Math.max(0, Math.min(time, sbPendingFile ? (sbPendingFile.duration || time) : time));
+                const afterSeek = () => {
+                    audio.play().catch(() => {});
+                    const onPlaying = () => {
+                        audio.removeEventListener('playing', onPlaying);
+                        if (Math.abs(audio.currentTime - target) > 0.3) {
+                            audio.currentTime = target;
+                        }
+                    };
+                    audio.addEventListener('playing', onPlaying);
+                };
+                if (Math.abs(audio.currentTime - target) < 0.05) {
+                    afterSeek();
+                } else {
+                    const onSeeked = () => {
+                        audio.removeEventListener('seeked', onSeeked);
+                        afterSeek();
+                    };
+                    audio.addEventListener('seeked', onSeeked);
+                    audio.currentTime = target;
+                }
+            };
+            if (audio.readyState >= 1) {
+                doSeekPlay();
+            } else {
+                audio.addEventListener('loadedmetadata', doSeekPlay, { once: true });
+            }
+        }
+
         // Klik di mana saja di bar -- langsung dengar dari titik itu. Ini
         // yang dipakai untuk "menjelajah acak" cari bagian yang mau dipotong,
         // sebelum ditandai jadi Mulai/Selesai.
@@ -2988,9 +3030,7 @@
             if (!sbPendingFile || !sbPendingFile.duration) return;
             const rect = sbModalProgress.getBoundingClientRect();
             const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-            const audio = ensureSbPreviewAudio();
-            audio.currentTime = pct * sbPendingFile.duration;
-            audio.play().catch(() => {});
+            sbPreviewSeekAndPlay(pct * sbPendingFile.duration);
         });
 
         sbModalPlayToggleBtn.addEventListener('click', () => {
@@ -3000,8 +3040,7 @@
                 // Selalu mulai dari titik gunting "Mulai", bukan dari
                 // posisi 0 atau posisi terakhir kali di-jeda.
                 const startTime = parseTimeInput(sbModalStartInput.value, 0);
-                audio.currentTime = Math.max(0, Math.min(startTime, sbPendingFile.duration || startTime));
-                audio.play().catch(() => {});
+                sbPreviewSeekAndPlay(startTime);
             } else {
                 audio.pause();
             }
@@ -3142,17 +3181,27 @@
         // teks detik jalan -- semuanya dihitung RELATIF terhadap potongan
         // (start–end), supaya selalu mulai dari 0:00 tiap kali diputar.
         function updateTileProgress(tile) {
-            const el = document.getElementById(tile.id);
-            if (!el) return;
             const range = tile.end - tile.start;
             const elapsed = range > 0 ? Math.max(0, Math.min(range, tile.audio.currentTime - tile.start)) : 0;
             const pct = range > 0 ? (elapsed / range) * 100 : 0;
-            const fillEl = el.querySelector('.sb-tile-fill');
-            if (fillEl) fillEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
-            const barEl = el.querySelector('.sb-tile-progress-bar');
-            if (barEl) barEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
-            const timeEl = el.querySelector('.sb-tile-time');
-            if (timeEl) timeEl.textContent = `${formatTime(elapsed)} / ${formatTime(range)}`;
+
+            // BUG FIX: kotak grid HANYA ada untuk clip Soundboard biasa --
+            // lagu Backsound sengaja tidak dibuatkan kotak di grid (lihat
+            // renderSoundboardGrid), jadi "el" di sini BISA null untuk
+            // Backsound. Sebelumnya fungsi ini langsung "return" kalau "el"
+            // null, sehingga bagian yang update panel "Sekarang Diputar" di
+            // bawah ini ikut tidak pernah kejalan -- makanya progress bar
+            // Backsound diam saja. Sekarang bagian grid dibuat opsional,
+            // bagian panel tetap selalu jalan.
+            const el = document.getElementById(tile.id);
+            if (el) {
+                const fillEl = el.querySelector('.sb-tile-fill');
+                if (fillEl) fillEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+                const barEl = el.querySelector('.sb-tile-progress-bar');
+                if (barEl) barEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+                const timeEl = el.querySelector('.sb-tile-time');
+                if (timeEl) timeEl.textContent = `${formatTime(elapsed)} / ${formatTime(range)}`;
+            }
 
             // Kalau kotak ini yang sedang tampil di panel "Sekarang
             // Diputar", ikut update bar & angka detik di sana juga.
