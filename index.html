@@ -652,12 +652,11 @@
             border: 1px solid rgba(255,255,255,0.12);
             border-radius: 12px;
             box-sizing: border-box;
-        }
             flex: 0 0 300px;
             width: 300px;
             min-width: 220px;
-            height: 190px;
-            max-height: 190px;
+            height: 220px;
+            max-height: 220px;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             padding: 12px;
@@ -760,8 +759,8 @@
             flex: 0 0 300px;
             width: 300px;
             min-width: 220px;
-            height: 190px;
-            max-height: 190px;
+            height: 220px;
+            max-height: 220px;
             overflow: hidden;
             padding: 4px 0 4px 20px;
             border-left: 1px solid rgba(255,255,255,0.14);
@@ -833,7 +832,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 16px;
+            gap: 12px;
         }
         .sb-player-controls button {
             background: rgba(255,255,255,0.12);
@@ -857,6 +856,32 @@
             font-size: 1.1rem;
         }
         .sb-player-controls .sb-player-play-btn:hover { background: var(--dark-red); }
+        .sb-player-controls .sb-repeat-btn {
+            width: 28px;
+            height: 28px;
+            font-size: 0.8rem;
+            opacity: 0.55;
+        }
+        .sb-player-controls .sb-repeat-btn.active {
+            background: var(--primary-red);
+            opacity: 1;
+        }
+        .sb-player-volume-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .sb-player-volume-icon {
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.6);
+            flex-shrink: 0;
+        }
+        .sb-player-volume-row input[type="range"] {
+            flex: 1;
+            accent-color: var(--primary-red);
+            height: 4px;
+        }
         @media (max-width: 768px) {
             .sb-top { flex-direction: column; }
             .sb-list-panel, .sb-player-panel { width: 100%; }
@@ -3031,6 +3056,7 @@
                 end: data.end,
                 isPlaying: false,
                 external: !!data.external,
+                repeat: false,
                 audio: new Audio(data.url)
             };
             tile.audio.preload = 'auto';
@@ -3043,21 +3069,33 @@
                 updateTileProgress(tile);
             }, { once: true });
             // Clip pendek (1–20 detik) -- cukup main sampai selesai lalu
-            // berhenti sendiri di titik akhir potongan, tidak diulang.
+            // berhenti sendiri di titik akhir potongan (kecuali "repeat"
+            // dinyalakan lewat panel Sekarang Diputar -- dipakai untuk lagu
+            // Backsound supaya bisa diulang terus).
             tile.audio.addEventListener('timeupdate', () => {
                 updateTileProgress(tile);
                 if (tile.audio.currentTime >= tile.end) {
-                    tile.audio.pause();
-                    tile.audio.currentTime = tile.start;
-                    tile.isPlaying = false;
-                    updateTileUI(tile);
+                    if (tile.repeat) {
+                        tile.audio.currentTime = tile.start;
+                        tile.audio.play().catch(() => {});
+                    } else {
+                        tile.audio.pause();
+                        tile.audio.currentTime = tile.start;
+                        tile.isPlaying = false;
+                        updateTileUI(tile);
+                    }
                     updateTileProgress(tile);
                 }
             });
             tile.audio.addEventListener('ended', () => {
-                tile.isPlaying = false;
-                tile.audio.currentTime = tile.start;
-                updateTileUI(tile);
+                if (tile.repeat) {
+                    tile.audio.currentTime = tile.start;
+                    tile.audio.play().catch(() => {});
+                } else {
+                    tile.isPlaying = false;
+                    tile.audio.currentTime = tile.start;
+                    updateTileUI(tile);
+                }
                 updateTileProgress(tile);
             });
             soundboardTiles.push(tile);
@@ -3222,11 +3260,23 @@
                     <span id="sbPlayerTotalTime">${formatTime(tile.end - tile.start)}</span>
                 </div>
                 <div class="sb-player-controls">
+                    <button type="button" id="sbPlayerRepeatBtn" class="sb-repeat-btn${tile.repeat ? ' active' : ''}" title="Ulang lagu ini terus-menerus">🔁</button>
                     <button type="button" id="sbPlayerPrevBtn" title="Suara sebelumnya di daftar">⏮</button>
                     <button type="button" class="sb-player-play-btn" id="sbPlayerPlayBtn" title="Main/Jeda">${tile.isPlaying ? '⏸' : '▶️'}</button>
                     <button type="button" id="sbPlayerStopBtn" title="Berhenti &amp; kembali ke titik Mulai">⏹</button>
                 </div>
+                <div class="sb-player-volume-row">
+                    <span class="sb-player-volume-icon">🔊</span>
+                    <input type="range" id="sbPlayerVolumeSlider" min="0" max="100" value="${Math.round((tile.audio.volume == null ? 1 : tile.audio.volume) * 100)}" title="Volume">
+                </div>
             `;
+            document.getElementById('sbPlayerRepeatBtn').addEventListener('click', (e) => {
+                tile.repeat = !tile.repeat;
+                e.currentTarget.classList.toggle('active', tile.repeat);
+            });
+            document.getElementById('sbPlayerVolumeSlider').addEventListener('input', (e) => {
+                tile.audio.volume = Math.min(1, Math.max(0, parseInt(e.target.value, 10) / 100));
+            });
             document.getElementById('sbPlayerProgressTrack').addEventListener('click', (e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
