@@ -2186,7 +2186,14 @@
             songRT.textContent = song.rt || '';
 
             coverArt.style.display = 'flex';
-            coverArt.innerHTML = song.cover;
+            // Song lama yang di-upload SEBELUM tulisan cover default diganti
+            // ke "BMS" masih menyimpan teks lama ("PLAYLIST<br>LAGU") di
+            // datanya (baik di memori maupun yang sudah tersimpan permanen
+            // di IndexedDB) -- makanya di sini teks lama itu ditangkap &
+            // ditimpa saat ditampilkan, supaya lagu LAMA maupun BARU
+            // sama-sama tampil "BMS", tanpa perlu mengubah data yang sudah
+            // tersimpan.
+            coverArt.innerHTML = (song.cover === 'PLAYLIST<br>LAGU') ? 'BMS' : song.cover;
             if (song.src) {
                 audioPlayer.src = song.src;
             } else {
@@ -2455,6 +2462,17 @@
         volumeSlider.addEventListener('input', () => {
             const vol = volumeSlider.value / 100;
             audioPlayer.volume = vol;
+            // Kalau rangkaian Web Audio sudah dibuat (lagu sudah pernah
+            // diputar), volume yang BENAR-BENAR dipakai adalah lewat node
+            // userVolumeGain -- lihat catatan di ensureAudioGraph(). Dibuat
+            // sedikit "ramp" (bukan loncat instan) supaya tidak kedengaran
+            // klik/pop kecil saat slider digeser cepat.
+            if (userVolumeGain && audioCtx) {
+                const t = audioCtx.currentTime;
+                userVolumeGain.gain.cancelScheduledValues(t);
+                userVolumeGain.gain.setValueAtTime(userVolumeGain.gain.value, t);
+                userVolumeGain.gain.linearRampToValueAtTime(vol, t + 0.05);
+            }
             volumeIcon.textContent = vol == 0 ? '🔇' : (vol < 0.5 ? '🔉' : '🔊');
         });
         audioPlayer.volume = volumeSlider.value / 100;
@@ -2509,7 +2527,7 @@
         // CATATAN: butuh audio yang sama-origin (upload dari storage = aman)
         // atau server sumbernya izinkan CORS -- kalau tidak, browser akan
         // membisukan audio begitu masuk Web Audio API (bukan bug di sini).
-        let audioCtx = null, sourceNode = null, pannerNode = null, masterGain = null;
+        let audioCtx = null, sourceNode = null, pannerNode = null, masterGain = null, userVolumeGain = null;
         let is8D = false, panStartTime = 0, panRafId = null;
 
         // Lama fade in/out (detik) yang dipakai tiap kali play/pause. Ini
@@ -2602,9 +2620,21 @@
             // supaya tidak ada suara "klik/pop/treeet" (lihat FADE_SECONDS).
             masterGain = audioCtx.createGain();
             masterGain.gain.value = 1;
+            // BUG FIX volume: di beberapa browser (terutama Safari/iPad),
+            // audioPlayer.volume TIDAK lagi benar-benar dipakai begitu
+            // elemen <audio>-nya "ditangkap" ke dalam Web Audio API lewat
+            // createMediaElementSource -- jadi slider volume kelihatan
+            // digeser tapi suaranya tidak berubah sama sekali. Makanya
+            // volume dari slider di sini dikontrol lewat NODE gain-nya
+            // sendiri (userVolumeGain), terpisah dari masterGain (yang
+            // khusus dipakai untuk fade in/out play-pause) -- supaya
+            // benar-benar berpengaruh ke suara di semua browser.
+            userVolumeGain = audioCtx.createGain();
+            userVolumeGain.gain.value = volumeSlider.value / 100;
             sourceNode.connect(pannerNode).connect(enhancer.input);
             enhancer.output.connect(masterGain);
-            masterGain.connect(audioCtx.destination);
+            masterGain.connect(userVolumeGain);
+            userVolumeGain.connect(audioCtx.destination);
         }
 
         function run8DPanLoop() {
