@@ -899,35 +899,42 @@
             align-content: start;
         }
 
-        .soundboard-add-tile {
-            background: rgba(255,255,255,0.12);
-            border: 2px dashed rgba(255,255,255,0.55);
-            border-radius: 12px;
-            min-height: 140px;
+        .soundboard-grid-label-row {
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 2.5rem;
-            color: var(--white);
-            cursor: pointer;
-            transition: background 0.2s, transform 0.15s;
+            justify-content: space-between;
+            padding: 4px 20px 0;
         }
-        .soundboard-add-tile:hover { background: rgba(255,255,255,0.22); transform: scale(1.03); }
+        .soundboard-grid-label-row .soundboard-grid-label { padding: 0; margin-bottom: 0; }
+        .soundboard-add-btn {
+            background: rgba(255,255,255,0.14);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: var(--white);
+            font-size: 0.78rem;
+            font-weight: bold;
+            padding: 5px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .soundboard-add-btn:hover { background: rgba(255,255,255,0.26); }
 
-        /* Kotak grid -- putih polos, teks/tombol hitam. Kontrol & info di
-           atas, judul "memanjang" (marquee kalau kepanjangan) nempel di
-           paling bawah selebar kotak -- mirip gaya daftar lagu utama.
+        /* Kotak grid -- putih polos. Tombol main BESAR di tengah (interaksi
+           utama, persis "soundboard" sungguhan), nomor kecil di kiri atas,
+           menu titik-tiga (Ganti Nama / Berhenti / Potongan Lain / Hapus)
+           di kanan atas -- supaya kotaknya bersih, tidak penuh tombol.
            Progres saat main digambar 2x: lapisan transparan yang mengisi
            seluruh kotak, DAN bar tipis + angka detik jalan di bawahnya. */
         .soundboard-tile {
             position: relative;
             background: var(--white);
             border-radius: 12px;
-            padding: 14px;
+            padding: 10px;
             min-height: 150px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            align-items: center;
+            justify-content: center;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             cursor: pointer;
             transition: transform 0.1s;
@@ -945,32 +952,76 @@
             pointer-events: none;
             z-index: 0;
         }
-        .sb-tile-controls,
-        .sb-tile-progress-wrap,
-        .sb-tile-extra,
-        .sb-tile-title-bottom {
-            position: relative;
+        .sb-tile-num {
+            position: absolute;
+            top: 8px;
+            left: 10px;
+            font-size: 0.72rem;
+            font-weight: bold;
+            color: #999;
             z-index: 1;
         }
-        .soundboard-tile .sb-tile-controls button,
-        .soundboard-tile .sb-tile-extra button { cursor: pointer; }
-        .sb-tile-controls {
-            display: flex;
-            justify-content: center;
-            gap: 14px;
-        }
-        .sb-tile-controls button {
+        .sb-tile-menu-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
             background: none;
             border: none;
-            font-size: 1.4rem;
+            font-size: 1.3rem;
+            color: #999;
             cursor: pointer;
+            padding: 4px 10px;
+            z-index: 2;
+        }
+        .sb-tile-menu-btn:hover { color: #111; }
+        .sb-tile-menu {
+            display: none;
+            position: absolute;
+            top: 26px;
+            right: 6px;
+            background: #222;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 5;
+            min-width: 165px;
+            text-align: left;
+        }
+        .sb-tile-menu.open { display: block; }
+        .sb-tile-menu button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            color: var(--white);
+            padding: 9px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .sb-tile-menu button:hover { background: rgba(255,255,255,0.1); }
+
+        .sb-tile-play-center {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary-red);
+            color: var(--white);
+            font-size: 1.7rem;
+            margin: 8px 0 10px;
+            box-shadow: 0 3px 10px rgba(225,0,0,0.4);
             transition: transform 0.15s;
         }
-        .sb-tile-controls button:hover { transform: scale(1.15); }
+        .soundboard-tile:hover .sb-tile-play-center { transform: scale(1.06); }
 
         /* Bar progres tipis + angka detik jalan, RELATIF terhadap
            potongan (start–end), bukan terhadap file aslinya. */
-        .sb-tile-progress-wrap { margin-top: 10px; }
+        .sb-tile-progress-wrap { position: relative; z-index: 1; width: 100%; margin-top: 2px; }
         .sb-tile-progress-track {
             width: 100%;
             height: 5px;
@@ -991,24 +1042,12 @@
             text-align: right;
         }
 
-        .sb-tile-extra {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 8px;
-        }
-        .sb-tile-extra button {
-            background: none;
-            border: none;
-            font-size: 1rem;
-            cursor: pointer;
-            opacity: 0.6;
-        }
-        .sb-tile-extra button:hover { opacity: 1; }
-
         /* Judul lagu di paling bawah kotak, selebar kotaknya -- kalau
            kepanjangan, "memanjang"/berjalan sendiri (marquee) sama seperti
            judul di daftar lagu pemutar utama; kalau muat, diam saja. */
         .sb-tile-title-bottom {
+            position: relative;
+            z-index: 1;
             margin-top: 8px;
             padding-top: 8px;
             border-top: 1px solid #eee;
@@ -1349,12 +1388,11 @@
             </div>
         </div>
 
-        <div class="soundboard-grid-label">SOUNDBOARD</div>
-        <div class="soundboard-grid" id="soundboardGrid">
-            <div class="soundboard-add-tile" id="soundboardAddBtn" title="Tambah suara baru">
-                <span>+</span>
-            </div>
+        <div class="soundboard-grid-label-row">
+            <div class="soundboard-grid-label">SOUNDBOARD</div>
+            <button type="button" class="soundboard-add-btn" id="soundboardAddBtn" title="Tambah suara baru">+ Tambah</button>
         </div>
+        <div class="soundboard-grid" id="soundboardGrid"></div>
 
         <!-- Popup pilihan sumber -- muncul tiap kali tombol "+" ditekan.
              Backsound = pakai lagu yang SUDAH ada di pemutar utama (RT15 /
@@ -3254,6 +3292,7 @@
                     <span class="sb-list-duration">${formatTime(tile.end - tile.start)}</span>
                     <button type="button" class="sb-list-menu-btn" title="Opsi">⋮</button>
                     <div class="sb-list-menu" id="sbListMenu-${tile.id}">
+                        <button type="button" data-act="rename">✏️ Ganti Nama</button>
                         <button type="button" data-act="cut">✂️ Potongan lain</button>
                         <button type="button" data-act="delete">🗑️ Hapus</button>
                     </div>
@@ -3268,6 +3307,16 @@
                     e.stopPropagation();
                     document.querySelectorAll('.sb-list-menu.open').forEach(m => { if (m !== menu) m.classList.remove('open'); });
                     menu.classList.toggle('open');
+                });
+                menu.querySelector('[data-act="rename"]').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    menu.classList.remove('open');
+                    const newName = prompt('Nama baru untuk lagu ini:', tile.title);
+                    if (newName && newName.trim()) {
+                        tile.title = newName.trim();
+                        renderSbList();
+                        if (sbNowPlayingTileId === tile.id) renderSbPlayerPanel();
+                    }
                 });
                 menu.querySelector('[data-act="cut"]').addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -3288,7 +3337,7 @@
             });
         }
         document.addEventListener('click', () => {
-            document.querySelectorAll('.sb-list-menu.open').forEach(m => m.classList.remove('open'));
+            document.querySelectorAll('.sb-list-menu.open, .sb-tile-menu.open').forEach(m => m.classList.remove('open'));
         });
 
         function renderSbPlayerPanel() {
@@ -3452,58 +3501,76 @@
             // "Soundboard") -- lagu Backsound tidak ikut ditaruh di sini,
             // supaya tidak ada tombol main/jeda "Backsound" yang nyasar ke
             // grid ini. Backsound sudah ditampilkan di panel "Daftar Suara".
-            soundboardTiles.filter(tile => !tile.external).forEach(tile => {
+            soundboardTiles.filter(tile => !tile.external).forEach((tile, idx) => {
                 const el = document.createElement('div');
                 el.className = 'soundboard-tile';
                 el.id = tile.id;
                 el.title = 'Klik untuk bunyikan';
                 const rangeSecs = tile.end - tile.start;
+                const numLabel = String(idx + 1).padStart(2, '0');
                 el.innerHTML = `
                     <div class="sb-tile-fill"></div>
-                    <div class="sb-tile-controls">
-                        <button type="button" class="sb-play-btn" title="Main">▶️</button>
-                        <button type="button" class="sb-stop-btn" title="Berhenti & kembali ke awal potongan">⏹️</button>
+                    <span class="sb-tile-num">${numLabel}</span>
+                    <button type="button" class="sb-tile-menu-btn" title="Opsi">⋮</button>
+                    <div class="sb-tile-menu" id="sbTileMenu-${tile.id}">
+                        <button type="button" data-act="rename">✏️ Ganti Nama</button>
+                        <button type="button" data-act="stop">⏹️ Berhenti</button>
+                        <button type="button" data-act="cut">✂️ Potongan Lain</button>
+                        <button type="button" data-act="delete">🗑️ Hapus</button>
                     </div>
+                    <div class="sb-tile-play-center sb-play-btn">▶️</div>
                     <div class="sb-tile-progress-wrap">
                         <div class="sb-tile-progress-track">
                             <div class="sb-tile-progress-bar"></div>
                         </div>
                         <div class="sb-tile-time">0:00 / ${formatTime(rangeSecs)}</div>
                     </div>
-                    <div class="sb-tile-extra">
-                        <button type="button" class="sb-cut-btn" title="Buat potongan lain dari file ini">✂️ Potongan lain</button>
-                        <button type="button" class="sb-delete-btn" title="Hapus kotak ini">🗑️</button>
-                    </div>
                     <div class="sb-tile-title-bottom" title="${tile.title}">
                         <span class="sb-tile-title-track"><span class="marquee-seg">${tile.title}</span><span class="marquee-seg" aria-hidden="true">${tile.title}</span></span>
                     </div>
                 `;
-                // Klik badan kotak = trigger langsung (seperti tombol
-                // soundboard sungguhan). Semua kontrol kecil di dalamnya
-                // menghentikan rambatan klik supaya tidak dobel ke-trigger.
+                // Klik badan kotak (termasuk tombol main besar di tengah) =
+                // trigger langsung, seperti tombol soundboard sungguhan.
+                // Menu titik-tiga & isinya menghentikan rambatan klik supaya
+                // tidak ikut ke-trigger.
                 el.addEventListener('click', () => sbTriggerTile(tile));
-                el.querySelector('.sb-play-btn').addEventListener('click', (ev) => {
+                const menuBtn = el.querySelector('.sb-tile-menu-btn');
+                const menu = el.querySelector('.sb-tile-menu');
+                menuBtn.addEventListener('click', (ev) => {
                     ev.stopPropagation();
-                    sbTriggerTile(tile);
+                    document.querySelectorAll('.sb-tile-menu.open, .sb-list-menu.open').forEach(m => { if (m !== menu) m.classList.remove('open'); });
+                    menu.classList.toggle('open');
                 });
-                el.querySelector('.sb-stop-btn').addEventListener('click', (ev) => {
+                menu.querySelector('[data-act="rename"]').addEventListener('click', (ev) => {
                     ev.stopPropagation();
+                    menu.classList.remove('open');
+                    const newName = prompt('Nama baru untuk suara ini:', tile.title);
+                    if (newName && newName.trim()) {
+                        tile.title = newName.trim();
+                        renderSoundboardGrid();
+                    }
+                });
+                menu.querySelector('[data-act="stop"]').addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    menu.classList.remove('open');
                     sbStopTile(tile);
                 });
-                el.querySelector('.sb-cut-btn').addEventListener('click', (ev) => {
+                menu.querySelector('[data-act="cut"]').addEventListener('click', (ev) => {
                     ev.stopPropagation();
+                    menu.classList.remove('open');
                     sbPendingFile = { url: tile.url, blob: tile.blob, fileName: tile.fileName, duration: tile.fullDuration, baseTitle: tile.title, external: tile.external };
                     const gap = tile.end - tile.start || 60;
                     const nextStart = Math.min(tile.fullDuration, tile.end);
                     const nextEnd = Math.min(tile.fullDuration, nextStart + gap);
                     openSbModal(sbPendingFile, tile.title, nextStart, nextEnd);
                 });
-                el.querySelector('.sb-delete-btn').addEventListener('click', (ev) => {
+                menu.querySelector('[data-act="delete"]').addEventListener('click', (ev) => {
                     ev.stopPropagation();
+                    menu.classList.remove('open');
                     removeSoundboardTile(tile.id);
                 });
 
-                soundboardGrid.insertBefore(el, soundboardAddBtn);
+                soundboardGrid.appendChild(el);
                 updateTileUI(tile);
                 updateTileProgress(tile);
             });
