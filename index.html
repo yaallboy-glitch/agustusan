@@ -805,6 +805,144 @@
             .sb-master-volume { max-width: none; padding: 5px 10px; }
         }
 
+        /* ===== PRESET AKSES CEPAT -- 5 tombol horizontal, agak besar,
+           jadi "shortcut" langsung ke Backsound favorit. Klik = putar
+           dengan transisi crossfade smooth (pakai mesin fade in/out yang
+           sama seperti Backsound biasa -- lihat sbTriggerTile). ===== */
+        .sb-preset-bar {
+            padding: 4px 20px 0;
+            flex-shrink: 0;
+        }
+        .sb-preset-bar-title {
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            color: rgba(255,255,255,0.55);
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .sb-preset-row {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 4px;
+        }
+        .sb-preset-btn {
+            position: relative;
+            flex: 1 1 0;
+            min-width: 130px;
+            min-height: 78px;
+            box-sizing: border-box;
+            border-radius: 16px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 3px;
+            cursor: pointer;
+            user-select: none;
+            border: 1.5px solid rgba(255,255,255,0.14);
+            background: linear-gradient(155deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03));
+            transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), border-color 0.2s var(--ease), background 0.3s var(--ease);
+            animation: fadeInUp 0.35s var(--ease) both;
+            animation-delay: calc(var(--i, 0) * 60ms);
+        }
+        .sb-preset-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0,0,0,0.3); border-color: rgba(232,196,104,0.4); }
+        .sb-preset-btn:active { transform: translateY(-1px) scale(0.97); }
+        .sb-preset-btn.empty {
+            border-style: dashed;
+            border-color: rgba(255,255,255,0.22);
+            background: rgba(255,255,255,0.03);
+            align-items: center;
+            text-align: center;
+        }
+        .sb-preset-btn.empty:hover { border-color: rgba(232,196,104,0.5); background: rgba(255,255,255,0.06); }
+        .sb-preset-btn.assigned.playing {
+            border-color: var(--primary-red);
+            background: linear-gradient(155deg, rgba(225,0,0,0.35), rgba(225,0,0,0.08));
+            animation: tilePulseGlow 1.8s ease-in-out infinite, fadeInUp 0.35s var(--ease) both;
+        }
+        .sb-preset-num {
+            position: absolute;
+            top: 8px;
+            left: 12px;
+            font-size: 0.66rem;
+            font-weight: bold;
+            color: rgba(255,255,255,0.4);
+        }
+        .sb-preset-btn.playing .sb-preset-num { color: rgba(255,255,255,0.75); }
+        .sb-preset-plus {
+            font-size: 1.3rem;
+            color: rgba(255,255,255,0.35);
+            line-height: 1;
+        }
+        .sb-preset-title {
+            color: var(--white);
+            font-size: 0.86rem;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 10px;
+        }
+        .sb-preset-btn.empty .sb-preset-title {
+            color: rgba(255,255,255,0.45);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+        .sb-preset-sub {
+            color: rgba(255,255,255,0.42);
+            font-size: 0.66rem;
+        }
+        .sb-preset-clear-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0,0,0,0.4);
+            color: rgba(255,255,255,0.7);
+            font-size: 0.85rem;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.15s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease);
+        }
+        .sb-preset-btn.assigned:hover .sb-preset-clear-btn { opacity: 1; }
+        .sb-preset-clear-btn:hover { background: var(--primary-red); color: var(--white); }
+        /* Equalizer mini -- muncul cuma saat preset ini yang lagi bunyi. */
+        .sb-preset-eq {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: none;
+            align-items: flex-end;
+            gap: 2px;
+            height: 14px;
+        }
+        .sb-preset-btn.playing .sb-preset-eq { display: inline-flex; }
+        .sb-preset-eq i {
+            width: 3px;
+            background: var(--white);
+            border-radius: 2px;
+            animation: eqBounce 0.9s ease-in-out infinite;
+            transform-origin: bottom;
+        }
+        .sb-preset-eq i:nth-child(1) { height: 40%; animation-delay: 0s; }
+        .sb-preset-eq i:nth-child(2) { height: 100%; animation-delay: 0.15s; }
+        .sb-preset-eq i:nth-child(3) { height: 65%; animation-delay: 0.3s; }
+        @media (max-width: 700px) {
+            .sb-preset-btn { min-width: 118px; min-height: 70px; }
+        }
+        @media (max-width: 480px) {
+            .sb-preset-bar { padding: 4px 14px 0; }
+        }
+
         /* ===== Panel utama Mode Backsound: "DAFTAR SUARA" (kiri) +
            "SEKARANG DIPUTAR" (kanan) -- sekarang jadi SATU-SATUNYA konten
            mode ini (grid efek suara pendek sudah dihapus), jadi diberi
@@ -1458,6 +1596,20 @@
             </div>
             <button type="button" id="soundboardCloseBtn" title="Tutup Mode Backsound">✕</button>
         </div>
+
+        <!-- PRESET AKSES CEPAT -- 5 tombol horizontal berukuran agak besar,
+             tiap tombol jadi "shortcut" langsung ke satu Backsound favorit,
+             tanpa perlu cari-cari dulu di daftar. Klik tombol yang sudah
+             terisi = langsung putar, dengan transisi fade-out/fade-in
+             (crossfade) yang sama seperti klik dua kali di daftar biasa --
+             jadi tetap smooth walau pindah-pindah lagu dengan cepat.
+             Tombol yang masih kosong = ketuk untuk isi dari daftar
+             Backsound yang sudah ada. -->
+        <div class="sb-preset-bar">
+            <div class="sb-preset-bar-title">⚡ AKSES CEPAT</div>
+            <div class="sb-preset-row" id="sbPresetRow"></div>
+        </div>
+
         <div class="sb-top">
             <div class="sb-list-panel">
                 <div class="sb-list-panel-header">
@@ -1510,6 +1662,18 @@
                 <div class="sb-modal-actions">
                     <button type="button" id="sbRenameCancelBtn">Batal</button>
                     <button type="button" id="sbRenameConfirmBtn">Simpan</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Isi preset kosong -- daftar Backsound yang sudah ada supaya
+             tinggal dipilih, tanpa perlu upload lagi. -->
+        <div class="soundboard-modal" id="sbPresetPickerModal">
+            <div class="soundboard-modal-box">
+                <h3>⚡ Isi Preset <span id="sbPresetPickerSlotLabel"></span></h3>
+                <div class="sb-song-picker-list" id="sbPresetPickerList"></div>
+                <div class="sb-modal-actions">
+                    <button type="button" id="sbPresetPickerCancelBtn">Batal</button>
                 </div>
             </div>
         </div>
@@ -2975,6 +3139,10 @@
         // saat sbModalTargetType === 'mainsong').
         let mainCutContext = null;
         let sbNowPlayingTileId = null; // id kotak yang lagi tampil di panel "Sekarang Diputar"
+        // 5 preset akses cepat -- tiap slot isinya id tile Backsound (atau
+        // null kalau masih kosong). Tersimpan permanen lewat dbSetMeta.
+        let sbPresets = [null, null, null, null, null];
+        let sbPresetPickingSlot = null; // slot yang lagi dipilih isinya lewat sbPresetPickerModal
         // Volume KHUSUS Soundboard (0-1) -- terpisah total dari volume lagu
         // utama (volumeSlider/audioPlayer). Setiap kotak/clip Soundboard
         // punya volume relatifnya sendiri (tile.baseVolume, diatur lewat
@@ -3113,6 +3281,11 @@
         const sbRenameInput = document.getElementById('sbRenameInput');
         const sbRenameCancelBtn = document.getElementById('sbRenameCancelBtn');
         const sbRenameConfirmBtn = document.getElementById('sbRenameConfirmBtn');
+        const sbPresetRow = document.getElementById('sbPresetRow');
+        const sbPresetPickerModal = document.getElementById('sbPresetPickerModal');
+        const sbPresetPickerSlotLabel = document.getElementById('sbPresetPickerSlotLabel');
+        const sbPresetPickerList = document.getElementById('sbPresetPickerList');
+        const sbPresetPickerCancelBtn = document.getElementById('sbPresetPickerCancelBtn');
 
         function openSoundboard() {
             soundboardOverlay.classList.add('open');
@@ -3120,6 +3293,7 @@
             if (req) { try { req.call(soundboardOverlay); } catch (e) {} }
             renderSbList();
             renderSbPlayerPanel();
+            renderSbPresets();
         }
 
         function closeSoundboard() {
@@ -3712,8 +3886,18 @@
             // Kalau kotak yang lagi tampil di panel "Sekarang Diputar" sudah
             // dihapus, kosongkan panelnya.
             if (sbNowPlayingTileId === id) sbNowPlayingTileId = null;
+            // Kalau kotak ini lagi dipakai di salah satu preset akses
+            // cepat, lepaskan juga presetnya -- daripada jadi preset
+            // "hantu" yang menunjuk ke tile yang sudah tidak ada.
+            let presetsChanged = false;
+            sbPresets = sbPresets.map((pId) => {
+                if (pId === id) { presetsChanged = true; return null; }
+                return pId;
+            });
+            if (presetsChanged) dbSetMeta('sbPresets', sbPresets);
             renderSbList();
             renderSbPlayerPanel();
+            renderSbPresets();
         }
 
         function sbStopTile(tile) {
@@ -3738,6 +3922,11 @@
             // class "playing" (nyalakan animasi equalizer kecil di CSS).
             const row = document.querySelector(`.sb-list-item[data-tile-id="${tile.id}"]`);
             if (row) row.classList.toggle('playing', !!tile.isPlaying);
+            // Tombol preset akses cepat yang menunjuk ke tile ini (kalau
+            // ada) -- ikut ditandai "playing" juga (equalizer + pulsa).
+            document.querySelectorAll(`.sb-preset-btn[data-tile-id="${tile.id}"]`).forEach((btn) => {
+                btn.classList.toggle('playing', !!tile.isPlaying);
+            });
             if (tile.id === sbNowPlayingTileId) {
                 const panelPlayBtn = document.getElementById('sbPlayerPlayBtn');
                 if (panelPlayBtn) {
@@ -3784,6 +3973,107 @@
         // supaya tidak ada tombol main/jeda-nya yang "nyasar" ke sini.
         function getSbBacksoundTiles() {
             return soundboardTiles.filter(t => t.isBacksound);
+        }
+
+        // =========================================================
+        // PRESET AKSES CEPAT (5 tombol horizontal)
+        //
+        // Cuma menyimpan REFERENSI ke tile Backsound yang sudah ada di
+        // daftar (id-nya saja) -- bukan salinan terpisah. Klik tombol yang
+        // sudah terisi memanggil selectSbNowPlaying(tile, true), fungsi
+        // yang SAMA dipakai daftar biasa -- jadi transisi pindah lagunya
+        // otomatis tetap smooth (fade-out lagu lama, fade-in lagu baru,
+        // lewat sbTriggerTile/stopOtherBacksounds yang sudah ada).
+        // =========================================================
+        function renderSbPresets() {
+            if (!sbPresetRow) return;
+            sbPresetRow.innerHTML = '';
+            sbPresets.forEach((tileId, slot) => {
+                const tile = tileId ? getSbTileById(tileId) : null;
+                const btn = document.createElement('div');
+                btn.style.setProperty('--i', slot);
+                if (tile) {
+                    btn.className = 'sb-preset-btn assigned' + (tile.isPlaying ? ' playing' : '');
+                    btn.dataset.tileId = tile.id;
+                    btn.title = `Preset ${slot + 1}: ${tile.title} -- ketuk untuk putar`;
+                    btn.innerHTML = `
+                        <span class="sb-preset-num">${slot + 1}</span>
+                        <button type="button" class="sb-preset-clear-btn" title="Lepas dari preset ini">×</button>
+                        <span class="sb-preset-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+                        <span class="sb-preset-title">${tile.title}</span>
+                        <span class="sb-preset-sub">▶️ Ketuk untuk putar</span>
+                    `;
+                    btn.addEventListener('click', (e) => {
+                        if (e.target.closest('.sb-preset-clear-btn')) return;
+                        selectSbNowPlaying(tile, true);
+                    });
+                    btn.querySelector('.sb-preset-clear-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        sbPresets[slot] = null;
+                        dbSetMeta('sbPresets', sbPresets);
+                        renderSbPresets();
+                    });
+                } else {
+                    btn.className = 'sb-preset-btn empty';
+                    btn.title = `Preset ${slot + 1}: kosong -- ketuk untuk isi`;
+                    btn.innerHTML = `
+                        <span class="sb-preset-num">${slot + 1}</span>
+                        <span class="sb-preset-plus">＋</span>
+                        <span class="sb-preset-title">Preset ${slot + 1}</span>
+                        <span class="sb-preset-sub">Ketuk untuk isi</span>
+                    `;
+                    btn.addEventListener('click', () => openSbPresetPicker(slot));
+                }
+                sbPresetRow.appendChild(btn);
+            });
+        }
+
+        // Buka daftar Backsound yang sudah ada supaya tinggal dipilih mau
+        // diisi ke preset yang mana -- tidak perlu upload ulang.
+        function openSbPresetPicker(slot) {
+            sbPresetPickingSlot = slot;
+            sbPresetPickerSlotLabel.textContent = `#${slot + 1}`;
+            const list = getSbBacksoundTiles();
+            sbPresetPickerList.innerHTML = '';
+            if (list.length === 0) {
+                sbPresetPickerList.innerHTML = '<div class="sb-song-picker-empty">Belum ada Backsound. Tambah dulu lewat tombol "+ Tambah" di daftar, baru bisa dijadikan preset.</div>';
+            } else {
+                list.forEach(tile => {
+                    const item = document.createElement('div');
+                    item.className = 'sb-song-picker-item';
+                    item.textContent = tile.title;
+                    item.addEventListener('click', () => {
+                        if (sbPresetPickingSlot === null) return;
+                        sbPresets[sbPresetPickingSlot] = tile.id;
+                        dbSetMeta('sbPresets', sbPresets);
+                        sbPresetPickerModal.classList.remove('open');
+                        sbPresetPickingSlot = null;
+                        renderSbPresets();
+                    });
+                    sbPresetPickerList.appendChild(item);
+                });
+            }
+            sbPresetPickerModal.classList.add('open');
+        }
+        sbPresetPickerCancelBtn.addEventListener('click', () => {
+            sbPresetPickerModal.classList.remove('open');
+            sbPresetPickingSlot = null;
+        });
+
+        // Pulihkan preset yang tersimpan (kalau ada) -- baru dipanggil
+        // SETELAH restoreSoundboardFromDB() selesai (lihat "Initial Load"
+        // di bagian paling bawah), supaya tile yang direferensikan sudah
+        // ada duluan saat presetnya dirender.
+        async function restoreSbPresetsFromDB() {
+            try {
+                const saved = await dbGetMeta('sbPresets');
+                if (Array.isArray(saved)) {
+                    sbPresets = [0, 1, 2, 3, 4].map(i => (typeof saved[i] === 'string' ? saved[i] : null));
+                }
+            } catch (err) {
+                console.error('Gagal memulihkan preset Backsound:', err);
+            }
+            renderSbPresets();
         }
 
         function renderSbList() {
@@ -3843,6 +4133,7 @@
                     openSbRenameModal(tile, () => {
                         persistBacksoundTile(tile);
                         renderSbList();
+                        renderSbPresets();
                         if (sbNowPlayingTileId === tile.id) renderSbPlayerPanel();
                     });
                 });
@@ -4106,7 +4397,7 @@
 
         // Initial Load -- coba pulihkan dari penyimpanan permanen dulu;
         // kalau gagal/kosong, tampilkan 15 slot RT kosong seperti biasa.
-        restoreFromDB().then(() => restoreSoundboardFromDB()).catch((err) => {
+        restoreFromDB().then(() => restoreSoundboardFromDB()).then(() => restoreSbPresetsFromDB()).catch((err) => {
             console.error('Gagal memulihkan playlist tersimpan:', err);
             loadSong(0);
         });
