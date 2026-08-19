@@ -1496,46 +1496,6 @@
             </div>
         </div>
 
-        <!-- Modal pemotong lagu -- muncul setiap kali file/lagu baru
-             dipilih (baik upload baru maupun ambil dari playlist), supaya
-             bagian mana dari lagu yang mau dipakai bisa diatur dulu SEBELUM
-             masuk ke daftar Backsound. Juga bisa dibuka lagi lewat "✂️
-             Potongan Lain" di menu tiap baris untuk membuat potongan lain
-             dari file yang sama. -->
-        <div class="soundboard-modal" id="soundboardModal">
-            <div class="soundboard-modal-box">
-                <h3>✂️ Potong &amp; Tambah Backsound</h3>
-                <label for="sbModalTitleInput">Nama Backsound</label>
-                <input type="text" id="sbModalTitleInput" placeholder="Nama Backsound">
-                <div class="sb-modal-duration" id="sbModalDurationLabel"></div>
-
-                <!-- Bar jelajah -- klik di mana saja untuk dengar dari titik
-                     itu (random). Seret gagang gunting ✂️ di kiri/kanan untuk
-                     mengarahkan titik Mulai & Selesai langsung di atas bar.
-                     Area gelap = rentang yg akan dipakai. -->
-                <div class="sb-modal-progress-track" id="sbModalProgress" title="Klik untuk dengar dari titik ini">
-                    <div class="sb-modal-progress-range" id="sbModalRangeEl"></div>
-                    <div class="sb-modal-progress-playhead" id="sbModalPlayheadEl"></div>
-                    <div class="sb-modal-handle sb-modal-handle-start" id="sbModalHandleStart" title="Geser untuk atur titik Mulai">✂️</div>
-                    <div class="sb-modal-handle sb-modal-handle-end" id="sbModalHandleEnd" title="Geser untuk atur titik Selesai">✂️</div>
-                </div>
-                <div class="sb-modal-mark-actions">
-                    <button type="button" id="sbModalPlayToggleBtn">▶️ Dengar</button>
-                    <button type="button" id="sbModalMarkStartBtn">🔴 Set Mulai</button>
-                    <button type="button" id="sbModalMarkEndBtn">🔴 Set Selesai</button>
-                </div>
-
-                <label for="sbModalStartInput">Mulai dari (mm:ss)</label>
-                <input type="text" id="sbModalStartInput" placeholder="0:00">
-                <label for="sbModalEndInput">Sampai (mm:ss)</label>
-                <input type="text" id="sbModalEndInput" placeholder="1:00">
-                <div class="sb-modal-actions">
-                    <button type="button" id="sbModalCancelBtn">Batal</button>
-                    <button type="button" id="sbModalConfirmBtn">+ Tambah</button>
-                </div>
-            </div>
-        </div>
-
         <!-- Ganti nama daftar Backsound -- pakai modal
              sendiri, BUKAN prompt() bawaan browser. prompt()/confirm()
              sering tidak muncul (atau langsung dianggap "Batal") saat
@@ -1551,6 +1511,51 @@
                     <button type="button" id="sbRenameCancelBtn">Batal</button>
                     <button type="button" id="sbRenameConfirmBtn">Simpan</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pemotong lagu (✂️) -- SENGAJA ditaruh DI LUAR
+         .soundboard-overlay (beda dari sebelumnya) supaya bisa dipakai
+         juga oleh upload lagu di pemutar utama/RT, tidak cuma di Mode
+         Backsound. Dipakai bergantian untuk 2 keperluan (ditandai lewat
+         variabel JS "sbModalTargetType"):
+           1. Backsound  -- muncul tiap kali file/lagu baru dipilih di Mode
+              Backsound, atau lewat "✂️ Potongan Lain" di menu tiap baris.
+           2. Lagu RT / Playlist Biasa -- muncul tiap kali upload lagu baru
+              di pemutar utama, supaya bagian intro yang sepi/hening bisa
+              dipotong duluan -- jadi begitu ditekan ▶️, lagunya langsung
+              bunyi tanpa jeda/delay, tidak perlu nunggu bagian sepi lewat. -->
+    <div class="soundboard-modal" id="soundboardModal">
+        <div class="soundboard-modal-box">
+            <h3 id="soundboardModalTitle">✂️ Potong &amp; Tambah Backsound</h3>
+            <label for="sbModalTitleInput" id="sbModalTitleLabel">Nama Backsound</label>
+            <input type="text" id="sbModalTitleInput" placeholder="Nama Backsound">
+            <div class="sb-modal-duration" id="sbModalDurationLabel"></div>
+
+            <!-- Bar jelajah -- klik di mana saja untuk dengar dari titik
+                 itu (random). Seret gagang gunting ✂️ di kiri/kanan untuk
+                 mengarahkan titik Mulai & Selesai langsung di atas bar.
+                 Area gelap = rentang yg akan dipakai. -->
+            <div class="sb-modal-progress-track" id="sbModalProgress" title="Klik untuk dengar dari titik ini">
+                <div class="sb-modal-progress-range" id="sbModalRangeEl"></div>
+                <div class="sb-modal-progress-playhead" id="sbModalPlayheadEl"></div>
+                <div class="sb-modal-handle sb-modal-handle-start" id="sbModalHandleStart" title="Geser untuk atur titik Mulai">✂️</div>
+                <div class="sb-modal-handle sb-modal-handle-end" id="sbModalHandleEnd" title="Geser untuk atur titik Selesai">✂️</div>
+            </div>
+            <div class="sb-modal-mark-actions">
+                <button type="button" id="sbModalPlayToggleBtn">▶️ Dengar</button>
+                <button type="button" id="sbModalMarkStartBtn">🔴 Set Mulai</button>
+                <button type="button" id="sbModalMarkEndBtn">🔴 Set Selesai</button>
+            </div>
+
+            <label for="sbModalStartInput">Mulai dari (mm:ss)</label>
+            <input type="text" id="sbModalStartInput" placeholder="0:00">
+            <label for="sbModalEndInput">Sampai (mm:ss)</label>
+            <input type="text" id="sbModalEndInput" placeholder="1:00">
+            <div class="sb-modal-actions">
+                <button type="button" id="sbModalCancelBtn">Batal</button>
+                <button type="button" id="sbModalConfirmBtn">+ Tambah</button>
             </div>
         </div>
     </div>
@@ -1855,7 +1860,9 @@
 
         // Simpan ulang metadata + file lagu tertentu ke IndexedDB. Dipakai
         // saat upload, ganti label RT, dsb. Butuh song.dbId & song._blob
-        // sudah terisi (lihat fileInput change handler).
+        // sudah terisi (lihat fileInput change handler). "start"/"end"
+        // ikut disimpan supaya potongan ✂️ intro yang sepi tetap kepotong
+        // sama persis setelah halaman dibuka lagi (tidak balik ke awal).
         function persistSong(song) {
             if (!song || !song.dbId || !song._blob) return;
             dbPutSong({
@@ -1867,7 +1874,9 @@
                 title: song.title,
                 fileName: song.fileName,
                 cover: song.cover,
-                blob: song._blob
+                blob: song._blob,
+                start: song.start || 0,
+                end: (song.end == null ? null : song.end)
             });
         }
 
@@ -2140,6 +2149,16 @@
             coverArt.innerHTML = (song.cover === 'PLAYLIST<br>LAGU') ? 'BMS' : song.cover;
             if (song.src) {
                 audioPlayer.src = song.src;
+                // Kalau lagu ini punya titik potong ✂️ "Mulai" (song.start),
+                // langsung lompat ke situ begitu metadata-nya siap -- bukan
+                // dari detik 0 -- supaya pas ▶️ ditekan lagunya langsung
+                // bunyi tanpa nunggu bagian sepi/hening di depan lewat dulu.
+                const startAt = song.start || 0;
+                if (startAt > 0) {
+                    audioPlayer.addEventListener('loadedmetadata', function sbSeekToStart() {
+                        audioPlayer.currentTime = startAt;
+                    }, { once: true });
+                }
             } else {
                 audioPlayer.removeAttribute('src');
                 audioPlayer.load();
@@ -2260,12 +2279,14 @@
         }
 
         // Stop/Reset -- beda dari pause: selain berhenti, posisi lagu
-        // dibalikin ke 00:00. TIDAK otomatis main lagi -- harus ditekan
-        // tombol ▶️ sendiri kalau mau lanjut dari awal.
+        // dibalikin ke titik "Mulai"-nya (00:00, atau titik ✂️ potong kalau
+        // lagu ini dipotong). TIDAK otomatis main lagi -- harus ditekan
+        // tombol ▶️ sendiri kalau mau lanjut dari situ.
         function stopSong() {
             pauseSong();
+            const song = getPlayingSong();
             if (audioPlayer.src) {
-                audioPlayer.currentTime = 0;
+                audioPlayer.currentTime = (song && song.start) || 0;
             }
             progressFill.style.width = '0%';
             currentTimeEl.textContent = '00:00';
@@ -2311,7 +2332,7 @@
             const mode = playingMode || currentMode;
             const list = getSongsArrayForMode(mode);
             const resetTime = () => {
-                audioPlayer.currentTime = 0;
+                audioPlayer.currentTime = (song && song.start) || 0;
             };
             if (!isAutoplay) {
                 // Autoplay dimatikan -- berhenti total, jangan lanjut ke lagu apa pun.
@@ -2338,21 +2359,44 @@
             nextSong();
         }
 
+        // Progress bar, angka detik berjalan, & durasi total di sini
+        // sengaja dihitung relatif terhadap titik potong ✂️ lagu (song.start
+        // -> song.end), BUKAN durasi asli file mentah-mentah -- supaya
+        // kalau intro yang sepi sudah dipotong, angka & bar-nya langsung
+        // menampilkan durasi "yang benar-benar akan didengar", bukan ikut
+        // menghitung bagian yang sudah dibuang.
         function updateProgress(e) {
-            const { duration, currentTime } = e.srcElement;
-            if (duration) {
-                const progressPercent = (currentTime / duration) * 100;
-                progressFill.style.width = `${progressPercent}%`;
-                currentTimeEl.textContent = formatTime(currentTime);
-                durationTimeEl.textContent = formatTime(duration);
+            const audioEl = e.srcElement;
+            const song = getPlayingSong();
+            const start = (song && song.start) || 0;
+            const end = (song && song.end != null) ? song.end : audioEl.duration;
+            if (!end) return;
+            const rangeDur = Math.max(0.01, end - start);
+            const elapsed = Math.max(0, Math.min(rangeDur, audioEl.currentTime - start));
+            const progressPercent = (elapsed / rangeDur) * 100;
+            progressFill.style.width = `${progressPercent}%`;
+            currentTimeEl.textContent = formatTime(elapsed);
+            durationTimeEl.textContent = formatTime(rangeDur);
+
+            // Kalau lagu ini dipotong ✂️ dan titik "Selesai"-nya lebih
+            // pendek dari file aslinya, event 'ended' bawaan <audio> TIDAK
+            // AKAN PERNAH terpicu (karena file-nya sendiri masih panjang)
+            // -- makanya dicek manual di sini tiap kali currentTime hampir
+            // sampai ke titik itu.
+            if (song && song.end != null && !audioEl.paused && audioEl.currentTime >= song.end - 0.05) {
+                handleSongEnd();
             }
         }
 
         function setProgress(e) {
             const width = this.clientWidth;
             const clickX = e.offsetX;
-            const duration = audioPlayer.duration;
-            if (duration) audioPlayer.currentTime = (clickX / width) * duration;
+            const song = getPlayingSong();
+            const start = (song && song.start) || 0;
+            const end = (song && song.end != null) ? song.end : audioPlayer.duration;
+            if (!end) return;
+            const rangeDur = Math.max(0.01, end - start);
+            audioPlayer.currentTime = start + (clickX / width) * rangeDur;
         }
 
         function formatTime(seconds) {
@@ -2775,61 +2819,35 @@
         // Tombol umum -- tambah lagu BARU di luar 15 slot RT (bukan isi slot RT)
         uploadBtn.addEventListener('click', () => { pendingUploadIndex = null; fileInput.click(); });
         
+        // PERBAIKAN: fitur ✂️ potong sekarang berlaku juga untuk upload
+        // lagu RT/Playlist (bukan cuma Backsound). Setiap file yang
+        // dipilih dibuka dulu lewat modal "✂️ Potong & Simpan Lagu" supaya
+        // bagian depan yang sepi/hening bisa dipotong -- begitu ditekan
+        // ▶️ nanti, lagunya langsung bunyi tanpa jeda/delay. Kalau tidak
+        // mau dipotong sama sekali, biarkan saja "Mulai dari" di 0:00 dan
+        // "Sampai" di akhir durasi (nilai bawaan begitu modal dibuka).
         fileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
-            if (file) {
-                const songUrl = URL.createObjectURL(file);
-                const songName = file.name.replace(/\.[^/.]+$/, ""); // Hapus ekstensi .mp3 dll
-
-                if (pendingUploadIndex !== null) {
-                    // Isi/ganti lagu KHUSUS slot RT yang tombol upload-nya diklik
-                    const idx = pendingUploadIndex;
-                    songs[idx].title = songName;
-                    songs[idx].src = songUrl;
-                    songs[idx].fileName = file.name; // nama asli + ekstensi, dipakai saat "Unduh Asli"
-                    songs[idx].cover = "LAGU<br>UPLOAD";
-                    songs[idx].dbId = `rt15-${idx}`;
-                    songs[idx]._blob = file;
-                    songs[idx]._dbMode = 'rt15';
-                    songs[idx]._dbSlotIndex = idx;
-                    persistSong(songs[idx]);
-                    pendingUploadIndex = null;
-                    if (currentMode === playingMode && idx === currentSongIndex) {
-                        loadSong(idx, currentMode); // refresh tampilan pemutar kalau slot ini lagi aktif
-                    } else {
-                        renderPlaylist();
-                    }
-                } else {
-                    // Tombol umum -- tambah baris baru di akhir daftar
-                    const order = Date.now();
-                    const newSong = {
-                        rt: currentMode === 'rt15' ? "UPLOAD" : "",
-                        title: songName,
-                        src: songUrl,
-                        fileName: file.name, // nama asli + ekstensi, dipakai saat "Unduh Asli"
-                        cover: currentMode === 'rt15' ? "LAGU<br>UPLOAD" : "BMS",
-                        dbId: `${currentMode}-extra-${order}-${Math.random().toString(36).slice(2, 8)}`,
-                        _blob: file,
-                        _dbMode: currentMode,
-                        _dbSlotIndex: null,
-                        _dbOrder: order
-                    };
-                    songs.push(newSong);
-                    persistSong(newSong);
-                    const newIndex = songs.length - 1;
-                    // Sama seperti yang lain -- jangan hentikan lagu yang
-                    // lagi berjalan cuma karena nambah lagu baru.
-                    if (!isPlaying) {
-                        loadSong(newIndex);
-                    } else {
-                        pendingSelectIndex = newIndex;
-                        renderPlaylist();
-                    }
-                }
-
-                // Reset input agar bisa upload file dengan nama yang sama lagi
-                fileInput.value = '';
-            }
+            fileInput.value = ''; // reset duluan biar bisa upload file nama sama lagi
+            if (!file) return;
+            const songUrl = URL.createObjectURL(file);
+            const songName = file.name.replace(/\.[^/.]+$/, ""); // Hapus ekstensi .mp3 dll
+            const targetIndex = pendingUploadIndex;
+            pendingUploadIndex = null;
+            const tempAudio = new Audio();
+            tempAudio.preload = 'metadata';
+            tempAudio.addEventListener('loadedmetadata', () => {
+                const dur = tempAudio.duration || 0;
+                mainCutContext = { file, url: songUrl, fileName: file.name, baseTitle: songName, targetIndex };
+                const fileInfo = { url: songUrl, duration: dur };
+                sbPendingFile = fileInfo;
+                openSbModal(fileInfo, songName, 0, dur, 'mainsong');
+            });
+            tempAudio.addEventListener('error', () => {
+                URL.revokeObjectURL(songUrl);
+                alert('Gagal membaca file audio ini. Coba file lain.');
+            });
+            tempAudio.src = songUrl;
         });
 
         // =========================================================
@@ -2857,7 +2875,9 @@
                     _blob: rec.blob || null,
                     _dbMode: rec.mode,
                     _dbSlotIndex: (rec.slotIndex === undefined ? null : rec.slotIndex),
-                    _dbOrder: rec.order || 0
+                    _dbOrder: rec.order || 0,
+                    start: rec.start || 0,
+                    end: (rec.end == null ? null : rec.end)
                 };
 
                 if (rec.mode === 'rt15' && rec.slotIndex !== null && rec.slotIndex !== undefined
@@ -2947,6 +2967,13 @@
         let soundboardIdCounter = 0;
         let sbPendingFile = null; // file/lagu yang lagi diatur potongannya di modal ✂️
         let sbPreviewAudio = null;
+        // Modal ✂️ (soundboardModal) dipakai bergantian untuk 2 keperluan --
+        // ini yang menandai sedang dipakai untuk yang mana:
+        // 'backsound' = Mode Backsound, 'mainsong' = upload lagu RT/Playlist.
+        let sbModalTargetType = 'backsound';
+        // Info lagu RT/Playlist yang lagi menunggu dipotong (cuma dipakai
+        // saat sbModalTargetType === 'mainsong').
+        let mainCutContext = null;
         let sbNowPlayingTileId = null; // id kotak yang lagi tampil di panel "Sekarang Diputar"
         // Volume KHUSUS Soundboard (0-1) -- terpisah total dari volume lagu
         // utama (volumeSlider/audioPlayer). Setiap kotak/clip Soundboard
@@ -3061,6 +3088,8 @@
         const sbMasterVolumeIcon = document.getElementById('sbMasterVolumeIcon');
         const soundboardAddBtn = document.getElementById('soundboardAddBtn');
         const soundboardModal = document.getElementById('soundboardModal');
+        const soundboardModalTitle = document.getElementById('soundboardModalTitle');
+        const sbModalTitleLabel = document.getElementById('sbModalTitleLabel');
         const sbModalTitleInput = document.getElementById('sbModalTitleInput');
         const sbModalStartInput = document.getElementById('sbModalStartInput');
         const sbModalEndInput = document.getElementById('sbModalEndInput');
@@ -3282,8 +3311,16 @@
         }
 
         // Buka modal potong -- dipakai baik untuk file baru maupun untuk
-        // membuat potongan tambahan dari Backsound yang sudah ada di daftar.
-        function openSbModal(fileInfo, title, start, end) {
+        // membuat potongan tambahan dari Backsound yang sudah ada di
+        // daftar, MAUPUN untuk upload lagu baru di RT/Playlist (lihat
+        // "targetType"). Judul & label tombol menyesuaikan keperluannya.
+        function openSbModal(fileInfo, title, start, end, targetType) {
+            sbModalTargetType = targetType || 'backsound';
+            const isMainSong = sbModalTargetType === 'mainsong';
+            soundboardModalTitle.textContent = isMainSong ? '✂️ Potong & Simpan Lagu' : '✂️ Potong & Tambah Backsound';
+            sbModalTitleLabel.textContent = isMainSong ? 'Nama Lagu' : 'Nama Backsound';
+            sbModalTitleInput.placeholder = isMainSong ? 'Nama lagu' : 'Nama Backsound';
+            sbModalConfirmBtn.textContent = isMainSong ? '✂️ Potong & Simpan' : '+ Tambah';
             sbModalTitleInput.value = title;
             sbModalStartInput.value = formatTime(start);
             sbModalEndInput.value = formatTime(end);
@@ -3380,6 +3417,13 @@
         sbModalCancelBtn.addEventListener('click', () => {
             stopSbPreview();
             soundboardModal.classList.remove('open');
+            // Batal upload lagu RT/Playlist -- buang object URL sementara
+            // yang tadi dibuat, supaya tidak nyangkut di memori sia-sia
+            // (belum sempat disimpan ke mana pun).
+            if (sbModalTargetType === 'mainsong' && sbPendingFile && sbPendingFile.url) {
+                URL.revokeObjectURL(sbPendingFile.url);
+            }
+            mainCutContext = null;
             sbPendingFile = null;
         });
 
@@ -3490,23 +3534,91 @@
             let end = parseTimeInput(sbModalEndInput.value, duration);
             start = Math.max(0, Math.min(start, duration));
             end = Math.max(start + 0.2, Math.min(end, duration));
-            const title = (sbModalTitleInput.value || sbPendingFile.baseTitle || 'Backsound').trim() || 'Backsound';
-            const tile = addSoundboardTile({
-                title,
-                url: sbPendingFile.url,
-                blob: sbPendingFile.blob,
-                fileName: sbPendingFile.fileName,
-                fullDuration: duration,
-                start,
-                end,
-                external: !!sbPendingFile.external,
-                refSongDbId: sbPendingFile.refSongDbId || null
-            });
-            selectSbNowPlaying(tile, false);
+
+            if (sbModalTargetType === 'mainsong') {
+                const title = (sbModalTitleInput.value || sbPendingFile.baseTitle || 'Lagu').trim() || 'Lagu';
+                applyMainSongCut(title, start, end);
+            } else {
+                const title = (sbModalTitleInput.value || sbPendingFile.baseTitle || 'Backsound').trim() || 'Backsound';
+                const tile = addSoundboardTile({
+                    title,
+                    url: sbPendingFile.url,
+                    blob: sbPendingFile.blob,
+                    fileName: sbPendingFile.fileName,
+                    fullDuration: duration,
+                    start,
+                    end,
+                    external: !!sbPendingFile.external,
+                    refSongDbId: sbPendingFile.refSongDbId || null
+                });
+                selectSbNowPlaying(tile, false);
+            }
             stopSbPreview();
             soundboardModal.classList.remove('open');
             sbPendingFile = null;
         });
+
+        // Terapkan hasil potong ✂️ ke lagu RT/Playlist -- baik mengisi slot
+        // RT tertentu (mainCutContext.targetIndex bukan null) maupun
+        // menambah baris baru di akhir daftar (targetIndex null). "start"
+        // & "end" disimpan di objek lagu supaya nanti diputar cuma di
+        // rentang itu -- ini yang menghilangkan jeda/delay kalau bagian
+        // depan file aslinya sepi/hening, karena lagu langsung "melompat"
+        // ke titik yang sudah ditentukan begitu ditekan ▶️.
+        function applyMainSongCut(title, start, end) {
+            if (!mainCutContext) return;
+            const ctx = mainCutContext;
+            mainCutContext = null;
+            const finalTitle = title || ctx.baseTitle || 'Lagu';
+
+            if (ctx.targetIndex !== null && ctx.targetIndex !== undefined) {
+                const idx = ctx.targetIndex;
+                if (!songs[idx]) return; // slot sudah tidak ada (kasus langka)
+                songs[idx].title = finalTitle;
+                songs[idx].src = ctx.url;
+                songs[idx].fileName = ctx.fileName;
+                songs[idx].cover = "LAGU<br>UPLOAD";
+                songs[idx].dbId = `rt15-${idx}`;
+                songs[idx]._blob = ctx.file;
+                songs[idx]._dbMode = 'rt15';
+                songs[idx]._dbSlotIndex = idx;
+                songs[idx].start = start;
+                songs[idx].end = end;
+                persistSong(songs[idx]);
+                if (currentMode === playingMode && idx === currentSongIndex) {
+                    loadSong(idx, currentMode); // refresh tampilan pemutar kalau slot ini lagi aktif
+                } else {
+                    renderPlaylist();
+                }
+            } else {
+                const order = Date.now();
+                const newSong = {
+                    rt: currentMode === 'rt15' ? "UPLOAD" : "",
+                    title: finalTitle,
+                    src: ctx.url,
+                    fileName: ctx.fileName,
+                    cover: currentMode === 'rt15' ? "LAGU<br>UPLOAD" : "BMS",
+                    dbId: `${currentMode}-extra-${order}-${Math.random().toString(36).slice(2, 8)}`,
+                    _blob: ctx.file,
+                    _dbMode: currentMode,
+                    _dbSlotIndex: null,
+                    _dbOrder: order,
+                    start,
+                    end
+                };
+                songs.push(newSong);
+                persistSong(newSong);
+                const newIndex = songs.length - 1;
+                // Sama seperti yang lain -- jangan hentikan lagu yang
+                // lagi berjalan cuma karena nambah lagu baru.
+                if (!isPlaying) {
+                    loadSong(newIndex);
+                } else {
+                    pendingSelectIndex = newIndex;
+                    renderPlaylist();
+                }
+            }
+        }
 
         // Mode ini sekarang KHUSUS Backsound (grid efek suara pendek sudah
         // dihapus) -- setiap tile yang dibuat SELALU isBacksound:true.
