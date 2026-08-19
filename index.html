@@ -1184,6 +1184,81 @@
         }
         .sb-modal-duration { font-size: 0.78rem; color: #888; margin-top: 6px; }
 
+        /* Bar seret/klik untuk "menjelajah" file aslinya sebelum menentukan
+           potongan mulai & selesai -- klik di mana saja utk dengar dari
+           situ, area abu-abu gelap menunjukkan rentang yang akan dipotong. */
+        .sb-modal-progress-track {
+            position: relative;
+            height: 34px;
+            background: #eee;
+            border-radius: 6px;
+            margin-top: 10px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .sb-modal-progress-range {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 0%;
+            background: rgba(0,0,0,0.18);
+            border-left: 2px solid #222;
+            border-right: 2px solid #222;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+        .sb-modal-progress-playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0%;
+            width: 2px;
+            background: #222;
+            pointer-events: none;
+        }
+        .sb-modal-mark-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .sb-modal-mark-actions button {
+            flex: 1;
+            font-size: 0.72rem;
+            padding: 7px 4px;
+            border-radius: 6px;
+            border: 1.5px solid #ddd;
+            background: var(--white);
+            cursor: pointer;
+            font-weight: bold;
+            color: #666;
+            min-width: 80px;
+        }
+        .sb-modal-mark-actions button:hover { border-color: #111; color: #111; }
+
+        /* Gagang gunting yang bisa diseret langsung di atas bar jelajah
+           untuk mengarahkan titik Mulai (kiri) & Selesai (kanan). */
+        .sb-modal-handle {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--white);
+            border: 2px solid #111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            cursor: ew-resize;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+            z-index: 2;
+            touch-action: none;
+        }
+        .sb-modal-handle:active { background: #ddd; }
+
         .sb-source-hint { font-size: 0.85rem; color: #666; margin: -4px 0 4px; }
         .sb-source-btn {
             display: flex;
@@ -1248,6 +1323,12 @@
         }
         .sb-modal-actions button:hover { border-color: #111; transform: translateY(-1px); }
         .sb-modal-actions button:active { transform: translateY(0) scale(0.97); }
+        #sbModalConfirmBtn {
+            background: linear-gradient(135deg, #222, #000);
+            border-color: #111;
+            color: var(--white);
+        }
+        #sbModalConfirmBtn:hover { border-color: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.35); }
 
         @media (max-width: 480px) {
             .soundboard-toggle-btn { font-size: 0.72rem; padding: 6px 10px; }
@@ -1396,13 +1477,13 @@
         <!-- Daftar lagu yang sudah ada -- muncul waktu tombol "+ Tambah"
              ditekan. Tombol "Upload File Baru" di atas daftar supaya
              Backsound juga bisa diisi dari file baru langsung, tidak
-             melulu harus lagu yang sudah ada di pemutar utama.
-             PERBAIKAN: tidak ada lagi modal "potong" -- lagu yang dipilih
-             langsung dipakai UTUH (dimaksimalkan) dari awal sampai akhir. -->
+             melulu harus lagu yang sudah ada di pemutar utama. Baik pilih
+             lagu lama maupun upload baru, sesudahnya tetap lewat modal
+             "✂️ Potong & Tambah" di bawah supaya bagian yang mau dipakai
+             bisa diatur dulu -- fitur gunting TETAP ADA sesuai permintaan. -->
         <div class="soundboard-modal" id="sbSongPickerModal">
             <div class="soundboard-modal-box">
                 <h3>🎵 Pilih Backsound</h3>
-                <p class="sb-source-hint">Lagu akan diputar penuh dari awal sampai akhir.</p>
                 <button type="button" class="sb-source-btn" id="sbSongPickerUploadBtn" style="width: 100%; box-sizing: border-box; margin-top: 10px;">
                     <span class="sb-source-emoji">⬆️</span>
                     <span class="sb-source-label">Upload File Baru</span>
@@ -1411,6 +1492,46 @@
                 <div class="sb-song-picker-list" id="sbSongPickerList"></div>
                 <div class="sb-modal-actions">
                     <button type="button" id="sbSongPickerCancelBtn">Batal</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal pemotong lagu -- muncul setiap kali file/lagu baru
+             dipilih (baik upload baru maupun ambil dari playlist), supaya
+             bagian mana dari lagu yang mau dipakai bisa diatur dulu SEBELUM
+             masuk ke daftar Backsound. Juga bisa dibuka lagi lewat "✂️
+             Potongan Lain" di menu tiap baris untuk membuat potongan lain
+             dari file yang sama. -->
+        <div class="soundboard-modal" id="soundboardModal">
+            <div class="soundboard-modal-box">
+                <h3>✂️ Potong &amp; Tambah Backsound</h3>
+                <label for="sbModalTitleInput">Nama Backsound</label>
+                <input type="text" id="sbModalTitleInput" placeholder="Nama Backsound">
+                <div class="sb-modal-duration" id="sbModalDurationLabel"></div>
+
+                <!-- Bar jelajah -- klik di mana saja untuk dengar dari titik
+                     itu (random). Seret gagang gunting ✂️ di kiri/kanan untuk
+                     mengarahkan titik Mulai & Selesai langsung di atas bar.
+                     Area gelap = rentang yg akan dipakai. -->
+                <div class="sb-modal-progress-track" id="sbModalProgress" title="Klik untuk dengar dari titik ini">
+                    <div class="sb-modal-progress-range" id="sbModalRangeEl"></div>
+                    <div class="sb-modal-progress-playhead" id="sbModalPlayheadEl"></div>
+                    <div class="sb-modal-handle sb-modal-handle-start" id="sbModalHandleStart" title="Geser untuk atur titik Mulai">✂️</div>
+                    <div class="sb-modal-handle sb-modal-handle-end" id="sbModalHandleEnd" title="Geser untuk atur titik Selesai">✂️</div>
+                </div>
+                <div class="sb-modal-mark-actions">
+                    <button type="button" id="sbModalPlayToggleBtn">▶️ Dengar</button>
+                    <button type="button" id="sbModalMarkStartBtn">🔴 Set Mulai</button>
+                    <button type="button" id="sbModalMarkEndBtn">🔴 Set Selesai</button>
+                </div>
+
+                <label for="sbModalStartInput">Mulai dari (mm:ss)</label>
+                <input type="text" id="sbModalStartInput" placeholder="0:00">
+                <label for="sbModalEndInput">Sampai (mm:ss)</label>
+                <input type="text" id="sbModalEndInput" placeholder="1:00">
+                <div class="sb-modal-actions">
+                    <button type="button" id="sbModalCancelBtn">Batal</button>
+                    <button type="button" id="sbModalConfirmBtn">+ Tambah</button>
                 </div>
             </div>
         </div>
@@ -1709,7 +1830,10 @@
         }
 
         // Simpan ulang satu tile Backsound ke IndexedDB -- dipakai tiap kali
-        // ditambah, diganti nama, diganti volume, atau diganti pengulangan.
+        // ditambah, dipotong ulang, diganti nama, diganti volume, atau
+        // diganti pengulangan. "start"/"end"/"fullDuration" ikut disimpan
+        // supaya potongan ✂️ yang sudah diatur tetap sama persis setelah
+        // halaman dibuka lagi.
         function persistBacksoundTile(tile) {
             if (!tile || !tile.isBacksound) return;
             dbPutBacksound({
@@ -1721,7 +1845,10 @@
                 blob: tile.external ? null : (tile.blob || null),
                 order: tile.order || Date.now(),
                 baseVolume: (tile.baseVolume == null ? 1 : tile.baseVolume),
-                repeat: !!tile.repeat
+                repeat: !!tile.repeat,
+                start: tile.start || 0,
+                end: (tile.end == null ? tile.fullDuration : tile.end),
+                fullDuration: tile.fullDuration || 0
             });
         }
         const persistBacksoundDebounced = debounce(persistBacksoundTile, 400);
@@ -2818,6 +2945,8 @@
         // =========================================================
         let soundboardTiles = [];
         let soundboardIdCounter = 0;
+        let sbPendingFile = null; // file/lagu yang lagi diatur potongannya di modal ✂️
+        let sbPreviewAudio = null;
         let sbNowPlayingTileId = null; // id kotak yang lagi tampil di panel "Sekarang Diputar"
         // Volume KHUSUS Soundboard (0-1) -- terpisah total dari volume lagu
         // utama (volumeSlider/audioPlayer). Setiap kotak/clip Soundboard
@@ -2931,6 +3060,21 @@
         const sbMasterVolumeSlider = document.getElementById('sbMasterVolumeSlider');
         const sbMasterVolumeIcon = document.getElementById('sbMasterVolumeIcon');
         const soundboardAddBtn = document.getElementById('soundboardAddBtn');
+        const soundboardModal = document.getElementById('soundboardModal');
+        const sbModalTitleInput = document.getElementById('sbModalTitleInput');
+        const sbModalStartInput = document.getElementById('sbModalStartInput');
+        const sbModalEndInput = document.getElementById('sbModalEndInput');
+        const sbModalDurationLabel = document.getElementById('sbModalDurationLabel');
+        const sbModalProgress = document.getElementById('sbModalProgress');
+        const sbModalRangeEl = document.getElementById('sbModalRangeEl');
+        const sbModalPlayheadEl = document.getElementById('sbModalPlayheadEl');
+        const sbModalPlayToggleBtn = document.getElementById('sbModalPlayToggleBtn');
+        const sbModalMarkStartBtn = document.getElementById('sbModalMarkStartBtn');
+        const sbModalMarkEndBtn = document.getElementById('sbModalMarkEndBtn');
+        const sbModalHandleStart = document.getElementById('sbModalHandleStart');
+        const sbModalHandleEnd = document.getElementById('sbModalHandleEnd');
+        const sbModalConfirmBtn = document.getElementById('sbModalConfirmBtn');
+        const sbModalCancelBtn = document.getElementById('sbModalCancelBtn');
         const sbSongPickerModal = document.getElementById('sbSongPickerModal');
         const sbSongPickerList = document.getElementById('sbSongPickerList');
         const sbSongPickerCancelBtn = document.getElementById('sbSongPickerCancelBtn');
@@ -3039,7 +3183,8 @@
             // Modal kecil yang lagi terbuka ditutup duluan, tidak langsung
             // keluar dari Mode Soundboard (biar tidak "ke-skip").
             if (sbRenameModal.classList.contains('open')) { closeSbRenameModal(); return; }
-            const anySbModalOpen = sbSongPickerModal.classList.contains('open');
+            const anySbModalOpen = soundboardModal.classList.contains('open') ||
+                sbSongPickerModal.classList.contains('open');
             if (soundboardOverlay.classList.contains('open') && !anySbModalOpen) {
                 closeSoundboard();
             }
@@ -3090,11 +3235,11 @@
             sbSongPickerModal.classList.remove('open');
             soundboardBacksoundFileInput.click();
         });
-        // PERBAIKAN: Backsound sekarang DIMAKSIMALKAN -- tidak ada lagi modal
-        // "potong" (mulai/selesai manual). Begitu file dipilih, lagu langsung
-        // dipakai UTUH dari awal sampai akhir, lalu otomatis tersimpan
-        // permanen ke IndexedDB (lihat persistBacksoundTile) supaya tetap
-        // ada walau halaman di-refresh / aplikasi ditutup.
+        // Fitur ✂️ potong TETAP ADA -- begitu file dipilih, modal "Potong &
+        // Tambah" dibuka dulu supaya bagian yang mau dipakai bisa diatur
+        // (default rentang 0 - min(60 detik, durasi asli)), baru sesudah
+        // ditekan "+ Tambah" akan tersimpan permanen ke IndexedDB (lihat
+        // persistBacksoundTile) supaya tetap ada walau halaman di-refresh.
         soundboardBacksoundFileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             soundboardBacksoundFileInput.value = '';
@@ -3105,13 +3250,9 @@
             tempAudio.preload = 'metadata';
             tempAudio.addEventListener('loadedmetadata', () => {
                 const dur = tempAudio.duration || 0;
-                const tile = addSoundboardTile({
-                    title: baseTitle,
-                    url, blob: file, fileName: file.name,
-                    fullDuration: dur, start: 0, end: dur,
-                    external: false
-                });
-                selectSbNowPlaying(tile, false);
+                const fileInfo = { url, blob: file, fileName: file.name, duration: dur, baseTitle, external: false, refSongDbId: null };
+                sbPendingFile = fileInfo;
+                openSbModal(fileInfo, baseTitle, 0, Math.min(dur, 60));
             });
             tempAudio.addEventListener('error', () => {
                 URL.revokeObjectURL(url);
@@ -3130,18 +3271,9 @@
             tempAudio.preload = 'metadata';
             tempAudio.addEventListener('loadedmetadata', () => {
                 const dur = tempAudio.duration || 0;
-                const tile = addSoundboardTile({
-                    title: song.title,
-                    url: song.src,
-                    blob: null,
-                    fileName: song.fileName || null,
-                    fullDuration: dur,
-                    start: 0,
-                    end: dur,
-                    external: true,
-                    refSongDbId: song.dbId || null
-                });
-                selectSbNowPlaying(tile, false);
+                const fileInfo = { url: song.src, blob: null, fileName: song.fileName || null, duration: dur, baseTitle: song.title, external: true, refSongDbId: song.dbId || null };
+                sbPendingFile = fileInfo;
+                openSbModal(fileInfo, song.title, 0, Math.min(dur, 60));
             });
             tempAudio.addEventListener('error', () => {
                 alert('Gagal membaca lagu ini.');
@@ -3149,12 +3281,240 @@
             tempAudio.src = song.src;
         }
 
+        // Buka modal potong -- dipakai baik untuk file baru maupun untuk
+        // membuat potongan tambahan dari Backsound yang sudah ada di daftar.
+        function openSbModal(fileInfo, title, start, end) {
+            sbModalTitleInput.value = title;
+            sbModalStartInput.value = formatTime(start);
+            sbModalEndInput.value = formatTime(end);
+            sbModalDurationLabel.textContent = `Durasi asli file: ${formatTime(fileInfo.duration)}`;
+            sbModalPlayToggleBtn.textContent = '▶️ Dengar';
+            sbModalPlayheadEl.style.left = '0%';
+            updateModalRangeUI();
+            soundboardModal.classList.add('open');
+        }
+
+        // Gambar ulang area gelap (rentang yang akan dipakai) di bar
+        // jelajah, berdasarkan isi input Mulai/Selesai saat ini.
+        function updateModalRangeUI() {
+            if (!sbPendingFile || !sbPendingFile.duration) return;
+            const duration = sbPendingFile.duration;
+            let start = parseTimeInput(sbModalStartInput.value, 0);
+            let end = parseTimeInput(sbModalEndInput.value, duration);
+            start = Math.max(0, Math.min(start, duration));
+            end = Math.max(start, Math.min(end, duration));
+            const startPct = duration ? (start / duration) * 100 : 0;
+            const endPct = duration ? (end / duration) * 100 : 100;
+            sbModalRangeEl.style.left = `${startPct}%`;
+            sbModalRangeEl.style.width = `${Math.max(0, endPct - startPct)}%`;
+            sbModalHandleStart.style.left = `${startPct}%`;
+            sbModalHandleEnd.style.left = `${endPct}%`;
+        }
+        sbModalStartInput.addEventListener('change', updateModalRangeUI);
+        sbModalEndInput.addEventListener('change', updateModalRangeUI);
+
+        // Gagang gunting yang bisa diseret -- cara paling gampang buat
+        // "mengarahkan" persisnya titik Mulai/Selesai langsung di atas bar,
+        // dibanding cuma mengetik angka mm:ss.
+        let sbDraggingHandle = null; // 'start' | 'end' | null
+
+        function sbStartDrag(which) {
+            return (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                sbDraggingHandle = which;
+                try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
+            };
+        }
+        sbModalHandleStart.addEventListener('pointerdown', sbStartDrag('start'));
+        sbModalHandleEnd.addEventListener('pointerdown', sbStartDrag('end'));
+        sbModalHandleStart.addEventListener('click', (e) => e.stopPropagation());
+        sbModalHandleEnd.addEventListener('click', (e) => e.stopPropagation());
+
+        window.addEventListener('pointermove', (e) => {
+            if (!sbDraggingHandle || !sbPendingFile || !sbPendingFile.duration) return;
+            const rect = sbModalProgress.getBoundingClientRect();
+            const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+            const time = pct * sbPendingFile.duration;
+            if (sbDraggingHandle === 'start') {
+                const end = parseTimeInput(sbModalEndInput.value, sbPendingFile.duration);
+                const clamped = Math.max(0, Math.min(time, Math.max(0, end - 0.2)));
+                sbModalStartInput.value = formatTime(clamped);
+            } else {
+                const start = parseTimeInput(sbModalStartInput.value, 0);
+                const clamped = Math.min(sbPendingFile.duration, Math.max(time, start + 0.2));
+                sbModalEndInput.value = formatTime(clamped);
+            }
+            updateModalRangeUI();
+        });
+        window.addEventListener('pointerup', () => { sbDraggingHandle = null; });
+        window.addEventListener('pointercancel', () => { sbDraggingHandle = null; });
+
+        // Terima format "mm:ss" atau cuma angka detik biasa.
+        function parseTimeInput(str, fallback) {
+            if (!str) return fallback;
+            const trimmed = str.trim();
+            if (trimmed.includes(':')) {
+                const parts = trimmed.split(':').map(s => parseFloat(s));
+                if (parts.length === 2 && !parts.some(isNaN)) return parts[0] * 60 + parts[1];
+                return fallback;
+            }
+            const n = parseFloat(trimmed);
+            return isNaN(n) ? fallback : n;
+        }
+
+        let sbRafId = null;
+
+        function stopSbPreview() {
+            if (sbPreviewAudio) {
+                sbPreviewAudio.pause();
+                sbPreviewAudio = null;
+            }
+            if (sbRafId) {
+                cancelAnimationFrame(sbRafId);
+                sbRafId = null;
+            }
+            sbModalPlayToggleBtn.textContent = '▶️ Dengar';
+        }
+
+        sbModalCancelBtn.addEventListener('click', () => {
+            stopSbPreview();
+            soundboardModal.classList.remove('open');
+            sbPendingFile = null;
+        });
+
+        function sbUpdatePlayhead() {
+            if (!sbPreviewAudio || !sbPendingFile || !sbPendingFile.duration) return;
+            const pct = (sbPreviewAudio.currentTime / sbPendingFile.duration) * 100;
+            sbModalPlayheadEl.style.left = `${Math.min(100, Math.max(0, pct))}%`;
+            if (!sbPreviewAudio.paused) {
+                sbRafId = requestAnimationFrame(sbUpdatePlayhead);
+            }
+        }
+
+        function ensureSbPreviewAudio() {
+            if (!sbPreviewAudio && sbPendingFile) {
+                sbPreviewAudio = new Audio(sbPendingFile.url);
+                sbPreviewAudio.addEventListener('play', () => {
+                    sbModalPlayToggleBtn.textContent = '⏸️ Jeda';
+                    sbUpdatePlayhead();
+                });
+                sbPreviewAudio.addEventListener('pause', () => {
+                    sbModalPlayToggleBtn.textContent = '▶️ Dengar';
+                });
+                sbPreviewAudio.addEventListener('ended', () => {
+                    sbModalPlayToggleBtn.textContent = '▶️ Dengar';
+                });
+            }
+            return sbPreviewAudio;
+        }
+
+        // Dipakai baik oleh klik di bar jelajah maupun tombol "▶️ Dengar" --
+        // seek-nya ditunggu sampai metadata siap, lalu dicek ULANG begitu
+        // event "playing" benar-benar jalan, supaya selalu pas di titik yang
+        // diminta (bukan meleset balik ke detik 0).
+        function sbPreviewSeekAndPlay(time) {
+            const audio = ensureSbPreviewAudio();
+            if (!audio) return;
+            const doSeekPlay = () => {
+                const target = Math.max(0, Math.min(time, sbPendingFile ? (sbPendingFile.duration || time) : time));
+                const afterSeek = () => {
+                    audio.play().catch(() => {});
+                    const onPlaying = () => {
+                        audio.removeEventListener('playing', onPlaying);
+                        if (Math.abs(audio.currentTime - target) > 0.3) {
+                            audio.currentTime = target;
+                        }
+                    };
+                    audio.addEventListener('playing', onPlaying);
+                };
+                if (Math.abs(audio.currentTime - target) < 0.05) {
+                    afterSeek();
+                } else {
+                    const onSeeked = () => {
+                        audio.removeEventListener('seeked', onSeeked);
+                        afterSeek();
+                    };
+                    audio.addEventListener('seeked', onSeeked);
+                    audio.currentTime = target;
+                }
+            };
+            if (audio.readyState >= 1) {
+                doSeekPlay();
+            } else {
+                audio.addEventListener('loadedmetadata', doSeekPlay, { once: true });
+            }
+        }
+
+        // Klik di mana saja di bar -- langsung dengar dari titik itu. Ini
+        // yang dipakai untuk "menjelajah acak" cari bagian yang mau dipotong,
+        // sebelum ditandai jadi Mulai/Selesai.
+        sbModalProgress.addEventListener('click', (e) => {
+            if (!sbPendingFile || !sbPendingFile.duration) return;
+            const rect = sbModalProgress.getBoundingClientRect();
+            const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+            sbPreviewSeekAndPlay(pct * sbPendingFile.duration);
+        });
+
+        sbModalPlayToggleBtn.addEventListener('click', () => {
+            if (!sbPendingFile) return;
+            const audio = ensureSbPreviewAudio();
+            if (audio.paused) {
+                // Selalu mulai dari titik gunting "Mulai", bukan dari
+                // posisi 0 atau posisi terakhir kali di-jeda.
+                const startTime = parseTimeInput(sbModalStartInput.value, 0);
+                sbPreviewSeekAndPlay(startTime);
+            } else {
+                audio.pause();
+            }
+        });
+
+        // Tandai posisi dengar SEKARANG jadi titik Mulai/Selesai -- jadi
+        // alurnya: dengar-dengar dulu (klik di bar / tombol Dengar), begitu
+        // ketemu bagian yang pas, tekan salah satu tombol ini.
+        sbModalMarkStartBtn.addEventListener('click', () => {
+            if (!sbPreviewAudio) return;
+            sbModalStartInput.value = formatTime(sbPreviewAudio.currentTime);
+            updateModalRangeUI();
+        });
+        sbModalMarkEndBtn.addEventListener('click', () => {
+            if (!sbPreviewAudio) return;
+            sbModalEndInput.value = formatTime(sbPreviewAudio.currentTime);
+            updateModalRangeUI();
+        });
+
+        sbModalConfirmBtn.addEventListener('click', () => {
+            if (!sbPendingFile) return;
+            const duration = sbPendingFile.duration;
+            let start = parseTimeInput(sbModalStartInput.value, 0);
+            let end = parseTimeInput(sbModalEndInput.value, duration);
+            start = Math.max(0, Math.min(start, duration));
+            end = Math.max(start + 0.2, Math.min(end, duration));
+            const title = (sbModalTitleInput.value || sbPendingFile.baseTitle || 'Backsound').trim() || 'Backsound';
+            const tile = addSoundboardTile({
+                title,
+                url: sbPendingFile.url,
+                blob: sbPendingFile.blob,
+                fileName: sbPendingFile.fileName,
+                fullDuration: duration,
+                start,
+                end,
+                external: !!sbPendingFile.external,
+                refSongDbId: sbPendingFile.refSongDbId || null
+            });
+            selectSbNowPlaying(tile, false);
+            stopSbPreview();
+            soundboardModal.classList.remove('open');
+            sbPendingFile = null;
+        });
+
         // Mode ini sekarang KHUSUS Backsound (grid efek suara pendek sudah
-        // dihapus) -- setiap tile yang dibuat SELALU isBacksound:true, dan
-        // SELALU dimaksimalkan (start 0 -> akhir file, tidak dipotong).
-        // "data.id"/"data.order"/dst opsional -- dipakai saat memulihkan
-        // tile dari IndexedDB (lihat restoreSoundboardFromDB) supaya
-        // identitasnya sama persis dengan sebelum halaman ditutup.
+        // dihapus) -- setiap tile yang dibuat SELALU isBacksound:true.
+        // Rentang mulai/selesainya diatur lewat modal "✂️ Potong & Tambah"
+        // di atas -- fitur gunting TETAP ADA sesuai permintaan, tidak
+        // dihapus. "data.id"/"data.order"/dst opsional -- dipakai saat
+        // memulihkan tile dari IndexedDB (lihat restoreSoundboardFromDB)
+        // supaya identitasnya sama persis dengan sebelum halaman ditutup.
         function addSoundboardTile(data) {
             const tile = {
                 id: data.id || `sb-${Date.now()}-${soundboardIdCounter++}`,
@@ -3334,13 +3694,14 @@
                     <span class="sb-list-eq" aria-hidden="true"><i></i><i></i><i></i></span>
                     <div class="sb-list-info">
                         <div class="sb-list-title">${tile.title}</div>
-                        <div class="sb-list-sub">${tile.external ? '🔗 Dari playlist' : '⬆️ Diunggah'} · lagu penuh</div>
+                        <div class="sb-list-sub">${tile.external ? '🔗 Dari playlist' : '⬆️ Diunggah'} · ${formatTime(tile.start)}–${formatTime(tile.end)}</div>
                     </div>
                     <span class="sb-list-duration">${formatTime(tile.end - tile.start)}</span>
                     <button type="button" class="sb-list-menu-btn" title="Opsi">⋮</button>
                     <div class="sb-list-menu" id="sbListMenu-${tile.id}">
                         <button type="button" data-act="rename">✏️ Ganti Nama</button>
                         <button type="button" data-act="stop">⏹️ Berhenti</button>
+                        <button type="button" data-act="cut">✂️ Potongan Lain</button>
                         <button type="button" data-act="delete">🗑️ Hapus</button>
                     </div>
                 `;
@@ -3377,6 +3738,17 @@
                     e.stopPropagation();
                     menu.classList.remove('open');
                     sbStopTile(tile);
+                });
+                // Fitur ✂️ potong ulang -- buat potongan lain dari file yang
+                // sama tanpa upload ulang. Backsound YANG SEDANG dipotong
+                // ulang ini tidak langsung dihapus -- baru diganti kalau
+                // modal ditekan "+ Tambah" (lihat sbModalConfirmBtn), jadi
+                // aman kalau modalnya dibatalkan.
+                menu.querySelector('[data-act="cut"]').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    menu.classList.remove('open');
+                    sbPendingFile = { url: tile.url, blob: tile.blob, fileName: tile.fileName, duration: tile.fullDuration, baseTitle: tile.title, external: tile.external, refSongDbId: tile.refSongDbId || null };
+                    openSbModal(sbPendingFile, tile.title, tile.start, tile.end);
                 });
                 menu.querySelector('[data-act="delete"]').addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -3592,13 +3964,19 @@
                     tempAudio.preload = 'metadata';
                     tempAudio.addEventListener('loadedmetadata', () => {
                         const dur = tempAudio.duration || 0;
+                        // Pakai lagi rentang ✂️ yang sudah tersimpan (rec.start/
+                        // rec.end) -- kalau karena suatu sebab belum ada
+                        // (data lama), baru pakai seluruh durasi sebagai
+                        // cadangan.
+                        const start = Math.max(0, Math.min(rec.start || 0, dur));
+                        const end = (rec.end == null) ? dur : Math.max(start + 0.2, Math.min(rec.end, dur));
                         addSoundboardTile({
                             id: rec.id,
                             title: rec.title,
                             url, blob, fileName,
                             fullDuration: dur,
-                            start: 0,
-                            end: dur,
+                            start,
+                            end,
                             external: !!rec.external,
                             refSongDbId: rec.refSongDbId || null,
                             baseVolume: (rec.baseVolume == null ? 1 : rec.baseVolume),
